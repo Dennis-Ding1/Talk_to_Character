@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { playFmp4Stream } from "../lib/mse";
-import type { Character, OutputMode } from "../types";
+import type { Character, FaceCrop, OutputMode } from "../types";
 
 export interface AvatarHandle {
   drive: (d: { text?: string; audio_b64?: string }) => void;
@@ -10,6 +10,7 @@ export interface AvatarHandle {
 interface Props {
   movieId: string;
   character: Character;
+  face: FaceCrop | null; // look at the pause point; falls back to the portrait
   mode: OutputMode;
   speaking: boolean;
 }
@@ -20,7 +21,7 @@ interface Props {
  * lip_sync:    the avatar clip *is* the voice (Higgs TTS with the cloned voice), so it's unmuted.
  */
 export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
-  { movieId, character, mode, speaking },
+  { movieId, character, face, mode, speaking },
   ref,
 ) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -36,7 +37,7 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
     busy.current = true;
     setShowVideo(true);
     try {
-      const res = await api.avatarStream({ movie_id: movieId, character_id: character.id, ...next });
+      const res = await api.avatarStream({ movie_id: movieId, character_id: character.id, face_id: face?.id, ...next });
       await playFmp4Stream(videoRef.current, res);
     } catch (e) {
       setErr(String(e));
@@ -60,8 +61,12 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
 
   return (
     <div className={`avatar ${speaking ? "speaking" : ""}`}>
-      {character.face_image ? (
-        <img className={showVideo ? "hidden" : ""} src={api.faceUrl(movieId, character.id)} alt={character.name} />
+      {face || character.face_image ? (
+        <img
+          className={showVideo ? "hidden" : ""}
+          src={face ? face.url : api.faceUrl(movieId, character.id)}
+          alt={character.name}
+        />
       ) : (
         <div className={`face-placeholder big ${showVideo ? "hidden" : ""}`}>{character.name[0]}</div>
       )}

@@ -3,10 +3,11 @@
  * as it arrives, using Media Source Extensions. Falls back to "download then play" if the
  * codec string isn't supported.
  *
- * TODO(avatar owner): confirm the actual codecs Higgs returns (inspect the moov box or ask
- * Boson) and put the exact string first in CANDIDATE_TYPES.
+ * Measured from a real Higgs Avatar stream: H.264 High (avc1.64001E) 640x640 24fps + AAC-LC 24 kHz,
+ * ftyp/moov then moof/mdat fragments.
  */
 const CANDIDATE_TYPES = [
+  'video/mp4; codecs="avc1.64001E, mp4a.40.2"',
   'video/mp4; codecs="avc1.64001F, mp4a.40.2"',
   'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
   'video/mp4; codecs="avc1.4D401F, mp4a.40.2"',

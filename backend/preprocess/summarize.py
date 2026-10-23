@@ -1,69 +1,101 @@
 """LLM passes over the scenes:
 
-1. per scene: summary, key_events, who is present (speaker attribution if missing)
-2. per character, walking forward in time: a state checkpoint after each scene they're in
-   (goals / stance / emotion / relationships / what they've learned).
+1. per scene: summary, key_events, who is present
+2. per (scene, character present): that character's state at the end of the scene
+   (goals / stance / emotion / relationships), from THIS scene only.
 
-Each step only ever sees the past, so the generated knowledge is spoiler-free by construction.
+States are local on purpose: the runtime composes them from scenes the viewer has already seen,
+so a state can never smuggle in information from later in the film (important for non-linear
+films where story order != screen order).
 """
-
-import json
 
 from app.schemas import Character, CharacterState, Scene
 from preprocess.llm import chat_json
 
-SCENE_SYSTEM = """You annotate scenes of a film from its subtitles.
+SCENE_SYSTEM = """You annotate scenes of a film from its screenplay and subtitles.
 Return JSON: {"summary": str, "key_events": [str], "characters_present": [character_id]}
-- summary: 1-3 sentences, factual, written in English, include who did/said what.
-- key_events: important plot facts revealed in THIS scene only.
-- characters_present: ids from the given cast list who appear (speaking or clearly addressed).
-Do not use any knowledge of the film beyond the given text."""
+- summary: 2-3 sentences, factual, in English, say who did/said what and what it means for them.
+- key_events: up to 4 important facts revealed in THIS scene only.
+- characters_present: ids from the cast list physically in the scene (not just mentioned).
+Use only the given text."""
 
-STATE_SYSTEM = """You track one film character's inner state over time.
-Given their profile, their previous state and the scene they were just in, return JSON:
-{"goals": str, "stance": str, "emotion": str, "relationships": {character_id: str}, "knows": [str]}
-- Only update based on what this character witnessed. Keep "knows" cumulative but short (<=15 items).
-Do not use any knowledge of the film beyond the given text."""
+STATE_SYSTEM = """You describe ONE film character's inner state at the END of one scene.
+Return JSON: {"goals": str, "stance": str, "emotion": str, "relationships": {character_id: str}}
+Describe only the named character — never other characters' goals or feelings.
+- goals: what they want right now (1 sentence)
+- stance: their position on the central issue of this scene, in their own terms (1-2 sentences)
+- emotion: how they feel (a few words)
+- relationships: for each other cast member they interact with in this scene, how they now see
+  that person (1 short sentence). Keys must be ids from the cast list given.
+Base it only on this scene and the profile. Do not use knowledge of what happens later."""
 
 
 def _cast_text(cast: list[Character]) -> str:
     return "\n".join(f"- {c.id}: {c.name} ({', '.join(c.aliases)}) — {c.bio}" for c in cast)
 
 
+def _scene_text(s: Scene, names: dict[str, str]) -> str:
+    dialogue = "\n".join(f"{names.get(ln.speaker or '', ln.speaker or '?')}: {ln.text}" for ln in s.lines)
+    when = f"Story year: {int(s.story_year)}\n" if s.story_year else ""
+    where = f"Heading: {s.slug}\n" if s.slug else ""
+    action = f"What we see (screenplay): {s.action[:1500]}\n" if s.action else ""
+    return f"{when}{where}{action}Dialogue:\n{dialogue}"
+
+
 def annotate_scenes(scenes: list[Scene], cast: list[Character], context: str = "") -> list[Scene]:
     cast_text = _cast_text(cast)
     ids = {c.id for c in cast}
-    prev_summary = ""
+    names = {c.id: c.name for c in cast}
     for s in scenes:
-        dialogue = "\n".join(f"{ln.speaker or '?'}: {ln.text}" for ln in s.lines)
-        user = (
-            f"Cast:\n{cast_text}\n\nExtra context: {context or '-'}\n\n"
-            f"Previous scene: {prev_summary or '-'}\n\nThis scene's subtitles:\n{dialogue}"
-        )
-        out = chat_json(SCENE_SYSTEM, user)
+        if s.summary:
+            continue  # resumable
+        user = f"Cast:\n{cast_text}\n\nExtra context: {context or '-'}\n\n{_scene_text(s, names)}"
+        try:
+            out = chat_json(SCENE_SYSTEM, user)
+        except Exception as e:  # noqa: BLE001 — keep going, scene stays unsummarized
+            print(f"  {s.id} failed: {e}")
+            continue
         s.summary = out.get("summary", "")
-        s.key_events = out.get("key_events", [])
+        s.key_events = [str(e) for e in out.get("key_events", [])][:4]
         present = [c for c in out.get("characters_present", []) if c in ids]
-        s.characters_present = list(dict.fromkeys(s.characters_present + present))
-        prev_summary = s.summary
-        print(f"  {s.id} [{s.start:.0f}s] {s.summary[:80]}")
+        s.characters_present = sorted(set(s.characters_present) | set(present))
+        print(f"  {s.id} [{s.start / 60:.0f}m] {s.summary[:90]}")
     return scenes
 
 
-def build_states(scenes: list[Scene], cast: list[Character]) -> list[CharacterState]:
-    states: list[CharacterState] = []
-    for c in cast:
-        prev: dict = {"goals": "", "stance": "", "emotion": "", "relationships": c.relationships, "knows": []}
-        profile = f"{c.name}: {c.bio}\nPersonality: {c.personality}"
-        for s in scenes:
-            if c.id not in s.characters_present:
+def build_states(scenes: list[Scene], cast: list[Character],
+                 existing: list[CharacterState] | None = None) -> list[CharacterState]:
+    names = {c.id: c.name for c in cast}
+    alias = {n.lower(): c.id for c in cast for n in [c.id, c.name, *c.aliases]}
+    done = {(st.character_id, st.scene_id) for st in existing or []}
+    states = list(existing or [])
+    for s in scenes:
+        for c in cast:
+            if c.id not in s.characters_present or (c.id, s.id) in done:
                 continue
-            user = (
-                f"Character profile:\n{profile}\n\nPrevious state:\n{json.dumps(prev, ensure_ascii=False)}\n\n"
-                f"Scene summary: {s.summary}\nKey events: {s.key_events}"
-            )
-            out = chat_json(STATE_SYSTEM, user)
-            prev = {k: out.get(k, prev.get(k)) for k in prev}
-            states.append(CharacterState(character_id=c.id, t=s.end, **prev))
-        print(f"  {c.id}: {sum(1 for st in states if st.character_id == c.id)} checkpoints")
+            spoke = any(ln.speaker == c.id for ln in s.lines)
+            if not spoke and not s.summary:
+                continue
+            others = ", ".join(f"{o.id} ({o.name})" for o in cast if o.id in s.characters_present and o.id != c.id)
+            user = (f"Character: {c.name} ({c.id})\nProfile: {c.bio} Personality: {c.personality}\n"
+                    f"Other cast in this scene: {others or 'none'}\n\n"
+                    f"Scene summary: {s.summary}\n{_scene_text(s, names)}\n\n"
+                    f"Now describe the state of {c.name} — and only {c.name} — at the end of this scene. "
+                    f"Write goals/stance/emotion about {c.name}, from {c.name}'s point of view.")
+            try:
+                out = chat_json(STATE_SYSTEM, user)
+            except Exception as e:  # noqa: BLE001
+                print(f"  state {c.id}@{s.id} failed: {e}")
+                continue
+            rel = {}
+            for k, v in (out.get("relationships") or {}).items():
+                cid = alias.get(str(k).strip().lower())  # model may answer with names instead of ids
+                if cid and cid != c.id:
+                    rel[cid] = str(v)
+            states.append(CharacterState(
+                character_id=c.id, t=s.end, scene_id=s.id,
+                goals=str(out.get("goals", "")), stance=str(out.get("stance", "")),
+                emotion=str(out.get("emotion", "")), relationships=rel,
+            ))
+    print(f"  {len(states)} character states")
     return states

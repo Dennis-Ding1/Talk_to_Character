@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useConversation } from "../lib/useConversation";
-import type { Character, OutputMode } from "../types";
+import type { Character, FaceCrop, OutputMode } from "../types";
 import { AvatarView, type AvatarHandle } from "./AvatarView";
 import { MicButton } from "./MicButton";
 
 interface Props {
   movieId: string;
   character: Character;
+  face: FaceCrop | null;
   t: number;
   mode: OutputMode;
-  avatarEnabled: boolean;
   onClose: () => void;
 }
 
@@ -18,16 +18,14 @@ function fmt(t: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export function ChatPanel({ movieId, character, t, mode, avatarEnabled, onClose }: Props) {
+export function ChatPanel({ movieId, character, face, t, mode, onClose }: Props) {
   const avatar = useRef<AvatarHandle>(null);
   const { messages, status, error, startMic, stopMic, sendText } = useConversation({
     movieId,
     characterId: character.id,
     t,
     mode,
-    onAvatar: (d) => {
-      if (avatarEnabled || mode === "lip_sync") avatar.current?.drive(d);
-    },
+    onAvatar: (d) => avatar.current?.drive(d), // lip_sync mode only
   });
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -48,7 +46,14 @@ export function ChatPanel({ movieId, character, t, mode, avatarEnabled, onClose 
         </button>
       </header>
 
-      <AvatarView ref={avatar} movieId={movieId} character={character} mode={mode} speaking={status === "speaking"} />
+      <AvatarView
+        ref={avatar}
+        movieId={movieId}
+        character={character}
+        face={face}
+        mode={mode}
+        speaking={status === "speaking"}
+      />
       <div className="badge">AI-generated voice & likeness</div>
 
       <div className="messages" ref={listRef}>
@@ -58,6 +63,10 @@ export function ChatPanel({ movieId, character, t, mode, avatarEnabled, onClose 
           </div>
         ))}
         {status === "connecting" && <div className="muted">Connecting…</div>}
+        {status === "thinking" && <div className="muted">{character.name} is thinking…</div>}
+        {status === "ready" && messages.length === 0 && (
+          <div className="muted">Type a question, or tap 🎙 Speak, talk, then tap again to send.</div>
+        )}
         {error && <div className="error">{error}</div>}
       </div>
 

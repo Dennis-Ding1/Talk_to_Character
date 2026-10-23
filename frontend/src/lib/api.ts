@@ -1,4 +1,4 @@
-import type { Character, Movie, OutputMode, SessionResponse } from "../types";
+import type { Character, FaceCrop, Movie, OutputMode, SessionResponse } from "../types";
 
 async function json<T>(r: Response): Promise<T> {
   if (!r.ok) throw new Error(`${r.status} ${r.url}: ${await r.text()}`);
@@ -13,6 +13,9 @@ export const api = {
 
   charactersAt: (movieId: string, t: number) =>
     fetch(`/api/movies/${movieId}/characters?t=${t}`).then(json<Character[]>),
+
+  faces: (movieId: string, t: number) =>
+    fetch(`/api/movies/${movieId}/faces?t=${t.toFixed(2)}`).then(json<FaceCrop[]>),
 
   videoUrl: (movieId: string) => `/api/movies/${movieId}/video`,
   subtitlesUrl: (movieId: string) => `/api/movies/${movieId}/subtitles`,
@@ -30,6 +33,12 @@ export const api = {
     post(`/api/memory/${movieId}/${characterId}`, { role, text, t }),
 
   /** Returns the raw fMP4 stream response (play with lib/mse.ts). */
-  avatarStream: (body: { movie_id: string; character_id: string; text?: string; audio_b64?: string }) =>
+  avatarStream: (body: {
+    movie_id: string;
+    character_id: string;
+    face_id?: string;
+    text?: string;
+    audio_b64?: string;
+  }) =>
     post("/api/avatar/stream", body),
 };

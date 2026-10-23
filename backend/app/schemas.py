@@ -41,24 +41,36 @@ class SubtitleLine(BaseModel):
 
 class Scene(BaseModel):
     id: str
-    start: float
+    start: float  # film (screen) time, seconds
     end: float
     characters_present: list[str] = []
     summary: str = ""
     key_events: list[str] = []
     lines: list[SubtitleLine] = []
+    # Non-linear films: when the scene happens *in the story*. None = assume screen order.
+    story_year: float | None = None
+    thread: str | None = None  # e.g. "past", "hearing_1954", "senate_1959"
+    slug: str = ""  # screenplay heading, e.g. "INT. ROOM 2022, ATOMIC ENERGY COMMISSION -- DAY"
+    action: str = ""  # screenplay action lines (what we see) — used by the summarizer only
 
 
 class CharacterState(BaseModel):
-    """A checkpoint of what a character wants/feels/knows as of time t."""
+    """What a character wants/feels/thinks at the end of one scene.
+
+    With `scene_id` set, the state is local to that scene (built only from it), and the runtime
+    picks the latest state among scenes the character has already been seen in — so a state can
+    never carry information from scenes the viewer hasn't watched yet.
+    Without `scene_id` (hand-written data), `t` is a screen-time checkpoint.
+    """
 
     character_id: str
     t: float
+    scene_id: str | None = None
     goals: str = ""
     stance: str = ""
     emotion: str = ""
     relationships: dict[str, str] = {}
-    knows: list[str] = []  # facts the character has learned by t
+    knows: list[str] = []
 
 
 # ---------- API ----------
@@ -94,6 +106,7 @@ class AvatarRequest(BaseModel):
     character_id: str
     text: str | None = None  # lip_sync mode: drive with TTS
     audio_b64: str | None = None  # voice_first mode: drive with recorded reply audio (wav)
+    face_id: str | None = None  # face crop from GET /api/movies/{id}/faces?t=
     size: Literal["640x640", "640x480", "480x640"] = "640x640"
 
 

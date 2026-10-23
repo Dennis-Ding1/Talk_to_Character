@@ -34,7 +34,9 @@ async def create_session(req: SessionRequest):
         "audio": {
             "input": {
                 "format": {"type": "audio/pcm", "rate": 24000},
-                "turn_detection": {"type": "semantic_vad"},
+                # Push-to-talk: the client commits the audio buffer when the user taps the mic again.
+                # (Automatic VAD made the character hear itself through the speakers and stop.)
+                "turn_detection": None,
                 "transcription": transcription,
                 "noise_reduction": {"type": "near_field"},
             },

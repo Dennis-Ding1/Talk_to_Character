@@ -14,7 +14,7 @@ import typer
 
 from app.config import get_settings
 from app.context.subtitles import parse_srt
-from app.schemas import Character, Movie, Scene
+from app.schemas import Character, CharacterState, Movie, Scene
 from preprocess import faces as faces_mod
 from preprocess import voice_clips
 from preprocess.scenes import split_scenes
@@ -59,6 +59,28 @@ def scenes(movie_id: str, gap_s: float = 8.0):
 
 
 @app.command()
+def screenplay(
+    movie_id: str,
+    first_person: str = typer.Option(None, help="character id the script's 'I/ME' refers to"),
+    list_scenes: bool = typer.Option(False, "--list", help="only print screenplay scene indices"),
+):
+    """screenplay.pdf + subtitles.srt -> knowledge/scenes.json with speakers, presence, story years."""
+    from preprocess.build_scenes import build
+    from preprocess.screenplay import load_screenplay
+
+    folder, movie, cast = _load(movie_id)
+    if list_scenes:
+        for s in load_screenplay(folder / "screenplay.pdf"):
+            typer.echo(f"{s.index:4d} {s.timeline:6s} {s.slug}")
+        return
+    result = build(folder, cast, movie.subtitles, movie.duration_s, first_person)
+    _save_json(folder / "knowledge" / "scenes.json", [s.model_dump() for s in result])
+    attributed = sum(1 for s in result for ln in s.lines if ln.speaker)
+    total = sum(len(s.lines) for s in result)
+    typer.echo(f"{len(result)} scenes, {total} lines, {attributed / max(total, 1):.0%} with speaker")
+
+
+@app.command()
 def summarize(movie_id: str, context: str = ""):
     folder, movie, cast = _load(movie_id)
     path = folder / "knowledge" / "scenes.json"
@@ -68,19 +90,41 @@ def summarize(movie_id: str, context: str = ""):
     typer.echo("annotating scenes...")
     scs = annotate_scenes(scs, cast, extra)
     _save_json(path, [s.model_dump() for s in scs])
-    typer.echo("building character states...")
-    states = build_states(scs, cast)
-    _save_json(folder / "knowledge" / "character_states.json", [s.model_dump() for s in states])
+    typer.echo("building character states (one per scene per character present)...")
+    states_path = folder / "knowledge" / "character_states.json"
+    existing = [CharacterState(**s) for s in json.loads(states_path.read_text(encoding="utf-8"))] \
+        if states_path.exists() else []
+    existing = [s for s in existing if s.scene_id]  # resumable; drop hand-written checkpoints
+    states = build_states(scs, cast, existing)
+    _save_json(states_path, [s.model_dump() for s in states])
 
 
 @app.command()
-def voices(movie_id: str, register: bool = True):
+def voices(
+    movie_id: str,
+    register: bool = True,
+    only: str = typer.Option(None, help="comma-separated character ids"),
+    redo: bool = typer.Option(False, help="re-clone characters that already have a voice_id"),
+):
+    """Clone each character's voice. Without a hand-picked voice_clip, one is found automatically
+    from speaker-attributed scenes (run `screenplay` first)."""
+    from preprocess.voice_auto import find_voice_clips
+
     folder, movie, cast = _load(movie_id)
     video = folder / movie.video
+    wanted = set(only.split(",")) if only else None
+    scenes_path = folder / "knowledge" / "scenes.json"
+    scs = [Scene(**s) for s in json.loads(scenes_path.read_text(encoding="utf-8"))] if scenes_path.exists() else []
     for c in cast:
-        if not c.voice_clip:
-            typer.echo(f"skip {c.id}: no voice_clip")
+        if (wanted and c.id not in wanted) or (c.voice_id and not redo):
             continue
+        if not c.voice_clip:
+            found = find_voice_clips(scs, c.id) or find_voice_clips(scs, c.id, min_s=4.0)
+            if not found:
+                typer.echo(f"skip {c.id}: no clean solo line found; set voice_clip by hand")
+                continue
+            c.voice_clip = found[0][:2]
+            c.voice_ref_text = None
         cdir = folder / "characters" / c.id
         raw = voice_clips.cut_clip(video, *c.voice_clip, cdir / "voice_raw.wav")
         ref = voice_clips.separate_vocals(raw)
@@ -88,8 +132,8 @@ def voices(movie_id: str, register: bool = True):
             c.voice_ref_text = voice_clips.transcribe(ref, movie.language)
         if register:
             c.voice_id = voice_clips.register_voice(ref, c.voice_ref_text, f"{movie.id}-{c.id}")
-        typer.echo(f"{c.id}: voice_id={c.voice_id} ref_text={c.voice_ref_text[:60]!r}")
-    _save_cast(folder, cast)
+        typer.echo(f"{c.id}: clip={c.voice_clip} voice_id={c.voice_id} ref_text={c.voice_ref_text[:60]!r}")
+        _save_cast(folder, cast)  # save as we go: each clone takes a while on CPU
 
 
 @app.command()

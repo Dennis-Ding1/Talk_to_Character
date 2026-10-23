@@ -37,6 +37,7 @@ class MovieKnowledge:
         if scenes is None:
             scenes = self._fallback_scenes()
         self.scenes: list[Scene] = sorted((Scene(**s) for s in scenes), key=lambda s: s.start)
+        self.scene_by_id = {s.id: s for s in self.scenes}
         self.states: list[CharacterState] = sorted(
             (CharacterState(**s) for s in _read_json(folder / "knowledge" / "character_states.json", [])),
             key=lambda s: s.t,
@@ -71,17 +72,31 @@ class MovieKnowledge:
         speakers = {ln.speaker for ln in scene.lines if ln.speaker}
         return character_id in speakers if speakers else True
 
-    def known_scenes(self, character_id: str, t: float) -> list[Scene]:
-        """Scenes the character witnessed, cut at t.
+    def now_year(self, t: float) -> float | None:
+        """Story time of what's on screen at t (None for linear films without story_year)."""
+        s = self.current_scene(t)
+        return s.story_year if s else None
 
-        A scene still in progress at t keeps only lines spoken before t and drops its
-        summary/key_events (those were written with the whole scene in view -> spoilers).
+    def known_scenes(self, character_id: str, t: float) -> list[Scene]:
+        """Scenes the character witnessed that the viewer has already seen, as of the story
+        moment on screen at t. Ordered by story time (the character's memory order).
+
+        Rules:
+        - viewer has seen it: scene.start < t
+        - character was there: characters_present
+        - non-linear films: it happened no later (in the story) than the scene on screen now,
+          so a 1942 flashback can't "remember" a 1954 hearing the viewer saw earlier.
+        - a scene still in progress at t keeps only lines before t and drops its
+          summary/key_events (those were written with the whole scene in view).
         """
+        now = self.now_year(t)
         out: list[Scene] = []
         for s in self.scenes:
             if s.start >= t:
                 break
             if not self._was_present(s, character_id):
+                continue
+            if now is not None and s.story_year is not None and s.story_year > now + 1e-6:
                 continue
             if s.end <= t:
                 out.append(s)
@@ -96,13 +111,19 @@ class MovieKnowledge:
                         }
                     )
                 )
+        out.sort(key=lambda s: (s.story_year if s.story_year is not None else 0.0, s.start))
         return out
 
     def current_scene(self, t: float) -> Scene | None:
+        """The scene playing at t, or the last one that started before t (gaps between scenes)."""
+        last = None
         for s in self.scenes:
-            if s.start <= t < s.end:
+            if s.start > t:
+                break
+            last = s
+            if t < s.end:
                 return s
-        return None
+        return last
 
     def characters_at(self, t: float) -> list[Character]:
         """Characters on screen around t (for the picker). Falls back to everyone."""
@@ -115,10 +136,14 @@ class MovieKnowledge:
         return [self.characters[i] for i in ids] or list(self.characters.values())
 
     def state_at(self, character_id: str, t: float) -> CharacterState | None:
+        mine = [st for st in self.states if st.character_id == character_id]
+        if any(st.scene_id for st in mine):
+            # Per-scene states: take the one from the latest (in story order) fully-seen known scene.
+            done = {s.id: i for i, s in enumerate(self.known_scenes(character_id, t)) if s.summary or s.end < t}
+            ranked = [st for st in mine if st.scene_id in done]
+            return max(ranked, key=lambda st: done[st.scene_id]) if ranked else None
         latest = None
-        for st in self.states:
-            if st.character_id != character_id:
-                continue
+        for st in mine:  # screen-time checkpoints (hand-written data)
             if st.t > t:
                 break
             latest = st
@@ -131,12 +156,24 @@ class MovieKnowledge:
         return lines
 
 
+_DATA_FILES = ("movie.json", "characters.json", "knowledge/scenes.json", "knowledge/character_states.json")
+
+
+def _signature(folder: Path) -> tuple:
+    return tuple((folder / f).stat().st_mtime_ns if (folder / f).exists() else 0 for f in _DATA_FILES)
+
+
 @lru_cache(maxsize=16)
+def _load_cached(folder: Path, signature: tuple) -> MovieKnowledge:
+    return MovieKnowledge(folder)
+
+
 def load_movie(movie_id: str) -> MovieKnowledge:
+    """Cached, but reloads automatically when any data file changes (new voices, new summaries...)."""
     folder = get_settings().movies_dir / movie_id
     if not folder.is_dir():
         raise MovieNotFound(movie_id)
-    return MovieKnowledge(folder)
+    return _load_cached(folder, _signature(folder))
 
 
 def list_movies() -> list[Movie]:

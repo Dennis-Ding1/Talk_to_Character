@@ -24,7 +24,7 @@ def run_tool(name: str, call: ToolCall) -> dict:
         hits = search_scenes(known, call.arguments.get("query", ""))
         if not hits:
             return {"result": "You don't remember anything like that."}
-        return {"result": "\n\n".join(fmt_scene(s) for s in hits)}
+        return {"result": "\n\n".join(fmt_scene(s, {cid: ch.name for cid, ch in kb.characters.items()}) for s in hits)}
 
     if name == "get_relationship":
         other = (call.arguments.get("other") or "").strip().lower()

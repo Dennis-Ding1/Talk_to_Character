@@ -5,16 +5,17 @@ interface Props {
   onStop: () => void;
 }
 
-/** Toggle mic. Turn-taking is automatic (Higgs semantic VAD); speaking over the character interrupts it. */
+/** Push-to-talk: tap to start recording (interrupts the character), tap again to send. */
 export function MicButton({ listening, disabled, onStart, onStop }: Props) {
   return (
     <button
+      type="button"
       className={`mic ${listening ? "on" : ""}`}
       disabled={disabled}
       onClick={listening ? onStop : onStart}
       aria-pressed={listening}
     >
-      {listening ? "● Listening — tap to stop" : "🎙 Talk"}
+      {listening ? "● Recording — tap to send" : "🎙 Speak"}
     </button>
   );
 }

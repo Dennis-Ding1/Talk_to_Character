@@ -32,3 +32,11 @@ export interface ChatMessage {
   text: string;
   pending?: boolean;
 }
+
+/** A face cropped from the frames just before the pause point (the character's look right now). */
+export interface FaceCrop {
+  id: string;
+  url: string;
+  frame_t: number;
+  score: number;
+}

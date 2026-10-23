@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from app.boson.client import BosonClient, BosonError
 from app.context.knowledge import MovieNotFound, load_movie
+from app.routers.movies import face_crop_path
 from app.schemas import AvatarRequest
 
 router = APIRouter(prefix="/api/avatar", tags=["avatar"])
@@ -25,14 +26,18 @@ async def avatar_stream(req: AvatarRequest):
         c = kb.character(req.character_id)
     except (MovieNotFound, KeyError):
         raise HTTPException(404, "movie or character not found")
-    if not c.face_image:
-        raise HTTPException(400, f"{c.id} has no face_image (run `ttc-preprocess faces`)")
+    # Prefer the face grabbed at the pause point (the character's look right now), else the portrait.
+    face_path = face_crop_path(kb, req.face_id) if req.face_id else None
+    if face_path is None and c.face_image:
+        face_path = kb.folder / "characters" / c.id / c.face_image
+    if face_path is None or not face_path.exists():
+        raise HTTPException(400, f"no face for {c.id}: pick a face at the pause point or set face_image")
 
     client = BosonClient()
     if not client.enabled:
         raise HTTPException(503, "BOSON_API_KEY not configured")
 
-    ref_image = _data_uri(kb.folder / "characters" / c.id / c.face_image)
+    ref_image = _data_uri(face_path)
     try:
         if req.text:
             body = client.avatar_body(ref_image, text=req.text, voice=c.voice_id, size=req.size)

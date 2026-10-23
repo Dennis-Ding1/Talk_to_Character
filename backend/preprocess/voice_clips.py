@@ -43,9 +43,22 @@ def transcribe(wav: Path, language: str | None = None) -> str:
     except ImportError:
         print("  faster-whisper not installed -> no ref_text (fill voice_ref_text by hand)")
         return ""
-    model = WhisperModel("small", device="auto", compute_type="auto")
-    segments, _ = model.transcribe(str(wav), language=language)
+    import numpy as np
+
+    # Decode with ffmpeg ourselves (16 kHz mono float32): avoids faster-whisper's PyAV version issues.
+    pcm = subprocess.run(
+        ["ffmpeg", "-loglevel", "error", "-i", str(wav), "-f", "f32le", "-ac", "1", "-ar", "16000", "-"],
+        capture_output=True, check=True,
+    ).stdout
+    audio = np.frombuffer(pcm, dtype=np.float32)
+    global _whisper
+    if _whisper is None:
+        _whisper = WhisperModel("small", device="auto", compute_type="auto")
+    segments, _ = _whisper.transcribe(audio, language=language)
     return " ".join(s.text.strip() for s in segments)
+
+
+_whisper = None
 
 
 def register_voice(wav: Path, ref_text: str | None, title: str) -> str:

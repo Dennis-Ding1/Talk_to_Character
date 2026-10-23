@@ -15,14 +15,20 @@ venv/
 # node
 node_modules/
 frontend/dist/
+frontend/.vite/
 
 # media (too large / copyrighted — share out of band)
+# real movies (subtitles, screenplay text, annotations, media) never go in git — share them
+# privately; only the made-up demo movie is committed (tests use it)
+data/movies/*
+!data/movies/demo/
 data/movies/**/*.mp4
 data/movies/**/*.mkv
 data/movies/**/*.mov
 data/movies/**/*.wav
 data/movies/**/*.mp3
 data/movies/**/*.flac
+data/movies/**/screenplay.*
 data/movies/**/separated/
 data/movies/**/cache/
 data/memory/
@@ -32,3 +38,6 @@ data/memory/
 Thumbs.db
 .idea/
 .vscode/
+
+# smoke test output
+backend/smoke_out/

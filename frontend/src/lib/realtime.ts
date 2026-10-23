@@ -18,6 +18,15 @@ export interface RealtimeHandlers {
 
 type ServerEvent = { type: string; [k: string]: any };
 
+/** Non-Latin scripts the model tends to answer in English otherwise. */
+export function detectLanguage(text: string): string | null {
+  if (/[぀-ヿ]/.test(text)) return "Japanese";
+  if (/[가-힯]/.test(text)) return "Korean";
+  if (/[一-鿿]/.test(text)) return "Chinese";
+  if (/[Ѐ-ӿ]/.test(text)) return "Russian";
+  return null;
+}
+
 export class RealtimeSession {
   private ws?: WebSocket;
   private textBuf = new Map<string, string>();
@@ -50,10 +59,24 @@ export class RealtimeSession {
     this.send({ type: "input_audio_buffer.append", audio: b64 });
   }
 
+  clearAudio() {
+    this.send({ type: "input_audio_buffer.clear" });
+  }
+
+  /** Push-to-talk: end of the user's turn -> ask for a reply. */
+  commitAudio() {
+    this.send({ type: "input_audio_buffer.commit" });
+    this.send({ type: "response.create" });
+  }
+
   sendText(text: string) {
+    // The character's memories are in English, which pulls replies toward English.
+    // A short hint keeps typed questions answered in the user's language.
+    const lang = detectLanguage(text);
+    const withHint = lang ? `${text}\n\n(Reply in ${lang}.)` : text;
     this.send({
       type: "conversation.item.create",
-      item: { type: "message", role: "user", content: [{ type: "input_text", text }] },
+      item: { type: "message", role: "user", content: [{ type: "input_text", text: withHint }] },
     });
     this.send({ type: "response.create" });
   }

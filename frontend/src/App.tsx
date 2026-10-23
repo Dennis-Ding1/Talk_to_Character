@@ -3,7 +3,7 @@ import { CharacterPicker } from "./components/CharacterPicker";
 import { ChatPanel } from "./components/ChatPanel";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { api } from "./lib/api";
-import type { Character, Movie, OutputMode } from "./types";
+import type { Character, FaceCrop, Movie, OutputMode } from "./types";
 
 export default function App() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -11,8 +11,9 @@ export default function App() {
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [onScreen, setOnScreen] = useState<Character[]>([]);
   const [talkingTo, setTalkingTo] = useState<Character | null>(null);
+  const [faces, setFaces] = useState<FaceCrop[] | null>(null);
+  const [face, setFace] = useState<FaceCrop | null>(null);
   const [mode, setMode] = useState<OutputMode>("voice_first");
-  const [avatarEnabled, setAvatarEnabled] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -26,10 +27,20 @@ export default function App() {
       .catch((e) => setErr(`Backend not reachable: ${e}`));
   }, []);
 
-  const handlePause = async (t: number) => {
-    if (!movie) return;
+  /** "Talk to a character": pause here, then find who's on screen and their faces. */
+  const startTalk = async () => {
+    const v = videoRef.current;
+    if (!movie || !v) return;
+    v.pause();
+    const t = v.currentTime;
     setPausedAt(t);
     setTalkingTo(null);
+    setFaces(null);
+    // faces take a few seconds (frame sampling + detection); don't block the picker on them
+    api
+      .faces(movie.id, t)
+      .then(setFaces)
+      .catch(() => setFaces([]));
     setOnScreen(await api.charactersAt(movie.id, t));
   };
 
@@ -56,12 +67,6 @@ export default function App() {
             <option value="lip_sync">Lip-sync avatar (slower)</option>
           </select>
         </label>
-        {mode === "voice_first" && (
-          <label>
-            <input type="checkbox" checked={avatarEnabled} onChange={(e) => setAvatarEnabled(e.target.checked)} /> avatar
-            replay
-          </label>
-        )}
       </header>
 
       {err && <div className="error">{err}</div>}
@@ -69,13 +74,22 @@ export default function App() {
       <main className={talkingTo ? "with-chat" : ""}>
         <div className="stage">
           {movie && (
-            <VideoPlayer ref={videoRef} src={api.videoUrl(movie.id)} onPause={handlePause} onPlay={handlePlay} />
+            <VideoPlayer ref={videoRef} src={api.videoUrl(movie.id)} onPlay={handlePlay} />
+          )}
+          {movie && pausedAt === null && (
+            <button className="talk-btn" onClick={() => void startTalk()}>
+              💬 Talk to a character
+            </button>
           )}
           {movie && pausedAt !== null && !talkingTo && (
             <CharacterPicker
               movieId={movie.id}
               characters={onScreen}
-              onPick={setTalkingTo}
+              faces={faces}
+              onPick={(c, f) => {
+                setFace(f);
+                setTalkingTo(c);
+              }}
               onClose={() => setPausedAt(null)}
             />
           )}
@@ -85,9 +99,9 @@ export default function App() {
             key={`${talkingTo.id}@${pausedAt}`}
             movieId={movie.id}
             character={talkingTo}
+            face={face}
             t={pausedAt}
             mode={mode}
-            avatarEnabled={avatarEnabled}
             onClose={() => setTalkingTo(null)}
           />
         )}

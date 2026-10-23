@@ -2,18 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, OutputMode, SessionResponse } from "../types";
 import { api } from "./api";
 import { Mic } from "./audio/mic";
-import { bytesToBase64, pcm16ToWav } from "./audio/pcm";
 import { PcmPlayer } from "./audio/pcm-player";
 import { RealtimeSession } from "./realtime";
 
-export type Status = "idle" | "connecting" | "ready" | "listening" | "speaking" | "error";
+export type Status = "idle" | "connecting" | "ready" | "listening" | "thinking" | "speaking" | "error";
 
 interface Args {
   movieId: string;
   characterId: string;
   t: number;
   mode: OutputMode;
-  /** Called with a reply to render as avatar video (lip_sync: text; voice_first: wav base64). */
+  /** lip_sync mode: called with each reply text to render as a talking-avatar video. */
   onAvatar?: (drive: { text?: string; audio_b64?: string }) => void;
 }
 
@@ -27,6 +26,7 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
   const rt = useRef<RealtimeSession>();
   const mic = useRef<Mic>();
   const player = useRef<PcmPlayer>();
+  const responding = useRef(false);
   const onAvatarRef = useRef(onAvatar);
   onAvatarRef.current = onAvatar;
 
@@ -56,10 +56,6 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
         return;
       }
       const session = new RealtimeSession({
-        onSpeechStarted: () => {
-          // barge-in: cut the character off (server stops generating on its own; we stop local playback)
-          if (player.current?.playing) player.current.stop();
-        },
         onUserTranscript: (id, text) => {
           upsert(id, "user", text);
           void api.saveTurn(movieId, characterId, "user", text, t);
@@ -74,14 +70,15 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
           void api.saveTurn(movieId, characterId, "assistant", text, t);
           if (mode === "lip_sync") onAvatarRef.current?.({ text });
         },
-        onResponseDone: (st) => {
-          setStatus("ready");
-          const pcm = player.current?.takeRecording();
-          if (mode === "voice_first" && st === "completed" && pcm?.length) {
-            onAvatarRef.current?.({ audio_b64: bytesToBase64(pcm16ToWav(pcm)) });
-          }
+        onResponseDone: () => {
+          responding.current = false;
+          setStatus((s) => (s === "listening" ? s : "ready"));
+          player.current?.takeRecording(); // drop the buffered reply audio
         },
-        onToolCall: async (name, args) => (await api.tool(name, movieId, characterId, t, args)).result,
+        onToolCall: async (name, args) => {
+          responding.current = true; // a follow-up response is created after the tool result
+          return (await api.tool(name, movieId, characterId, t, args)).result;
+        },
         onError: (e) => {
           console.error("realtime error", e);
           setError(typeof e === "object" && e && "message" in e ? String((e as any).message) : "Realtime error");
@@ -108,27 +105,59 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
     };
   }, [movieId, characterId, t, mode, upsert]);
 
-  const startMic = useCallback(async () => {
-    await player.current?.resume();
-    mic.current = new Mic();
-    await mic.current.start((b64) => rt.current?.appendAudio(b64));
-    setStatus("listening");
+  /** Cut the character off if they're still answering (user is taking the turn). */
+  const interrupt = useCallback(() => {
+    player.current?.stop();
+    if (responding.current) {
+      rt.current?.cancel();
+      responding.current = false;
+    }
   }, []);
 
+  /** Push-to-talk, step 1: start recording. Nothing is sent as a turn until stopMic(). */
+  const startMic = useCallback(async () => {
+    await player.current?.resume();
+    interrupt();
+    rt.current?.clearAudio();
+    const m = new Mic();
+    try {
+      await m.start((b64) => rt.current?.appendAudio(b64));
+    } catch (e) {
+      setError(`Microphone unavailable: ${e}`);
+      return;
+    }
+    mic.current = m;
+    setError(null);
+    setStatus("listening");
+  }, [interrupt]);
+
+  /** Push-to-talk, step 2: stop recording and ask the character to answer. */
   const stopMic = useCallback(() => {
-    mic.current?.stop();
+    const m = mic.current;
     mic.current = undefined;
-    setStatus("ready");
+    if (!m) return;
+    m.stop();
+    if (m.seconds < 0.3) {
+      rt.current?.clearAudio(); // accidental tap
+      setStatus("ready");
+      return;
+    }
+    responding.current = true;
+    rt.current?.commitAudio();
+    setStatus("thinking");
   }, []);
 
   const sendText = useCallback(
     async (text: string) => {
       await player.current?.resume();
+      interrupt();
       upsert(`local-${Date.now()}`, "user", text);
       void api.saveTurn(movieId, characterId, "user", text, t);
+      responding.current = true;
       rt.current?.sendText(text);
+      setStatus("thinking");
     },
-    [movieId, characterId, t, upsert],
+    [movieId, characterId, t, upsert, interrupt],
   );
 
   return { messages, status, error, session, startMic, stopMic, sendText };
