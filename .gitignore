@@ -1,0 +1,34 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+frontend/dist/
+
+# media (too large / copyrighted — share out of band)
+data/movies/**/*.mp4
+data/movies/**/*.mkv
+data/movies/**/*.mov
+data/movies/**/*.wav
+data/movies/**/*.mp3
+data/movies/**/*.flac
+data/movies/**/separated/
+data/movies/**/cache/
+data/memory/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

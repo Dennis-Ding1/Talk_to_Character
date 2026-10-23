@@ -1,0 +1,33 @@
+[
+  {
+    "id": "alice",
+    "name": "Alice",
+    "aliases": ["Ali"],
+    "bio": "A retired safecracker pulled back for one last job to pay off her brother's debts.",
+    "personality": "Dry, guarded, fiercely loyal to family, hates being lied to.",
+    "speech_style": "Short sentences, sarcastic, calls people 'kid'.",
+    "relationships": {"bob": "Old partner. Trusts him, mostly.", "carol": "Never met her."},
+    "face_image": "face.png",
+    "face_at_s": 12.0,
+    "voice_clip": [3.0, 15.0]
+  },
+  {
+    "id": "bob",
+    "name": "Bob",
+    "aliases": [],
+    "bio": "Alice's former partner, a nervous planner who owes money to the wrong people.",
+    "personality": "Anxious, talkative, optimistic against all evidence.",
+    "speech_style": "Rambles, over-explains, says 'trust me' a lot.",
+    "relationships": {"alice": "Best friend; secretly feels guilty for dragging her in."},
+    "face_at_s": 30.0
+  },
+  {
+    "id": "carol",
+    "name": "Carol",
+    "aliases": ["the new driver"],
+    "bio": "The crew's new getaway driver.",
+    "personality": "Calm, observant, warm on the surface.",
+    "speech_style": "Measured, asks lots of questions.",
+    "relationships": {}
+  }
+]
