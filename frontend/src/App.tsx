@@ -134,7 +134,7 @@ export default function App() {
                 if (!v) return;
                 setPausedAt(null);
                 setTalkingTo(null);
-                v.currentTime = s.start + 0.6; // just past the fade-in
+                v.currentTime = s.jump ?? s.start + 0.6; // a chosen moment, or just past the fade-in
                 void v.play();
               }}
             >

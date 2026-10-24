@@ -48,10 +48,11 @@ export function ChatPanel({ movieId, avatarSpeech, character, face, t, mode, kno
   });
   const [draft, setDraft] = useState("");
   const [avatarTalking, setAvatarTalking] = useState(false);
-  // the character is heard, not read: their lines stay folded to one line until you open them
-  const [openLines, setOpenLines] = useState<Set<string>>(() => new Set());
+  // the character's lines are shown in full; tap one to fold it to a single line (and back)
+  const [foldedLines, setFoldedLines] = useState<Set<string>>(() => new Set());
+  const isOpen = (id: string) => !foldedLines.has(id);
   const toggleLine = (id: string) =>
-    setOpenLines((s) => {
+    setFoldedLines((s) => {
       const next = new Set(s);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -163,8 +164,8 @@ export function ChatPanel({ movieId, avatarSpeech, character, face, t, mode, kno
             <button
               key={m.id}
               type="button"
-              className={`line assistant ${openLines.has(m.id) ? "open" : ""} ${m.id === lastAssistant && speaking ? "lit" : ""}`}
-              aria-expanded={openLines.has(m.id)}
+              className={`line assistant ${isOpen(m.id) ? "open" : ""} ${m.id === lastAssistant && speaking ? "lit" : ""}`}
+              aria-expanded={isOpen(m.id)}
               onClick={(e) => {
                 const el = e.currentTarget;
                 toggleLine(m.id);
@@ -172,7 +173,7 @@ export function ChatPanel({ movieId, avatarSpeech, character, face, t, mode, kno
               }}
             >
               <span className="line-text">{m.text}</span>
-              <span className="line-toggle">{openLines.has(m.id) ? "Hide" : "Show"}</span>
+              <span className="line-toggle">{isOpen(m.id) ? "Fold" : "Show"}</span>
             </button>
           ) : (
             <div key={m.id} className={`line ${m.role}`}>

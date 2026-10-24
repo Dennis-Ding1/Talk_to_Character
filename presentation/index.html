@@ -930,9 +930,9 @@ Come back to the deck at about 5:40.</aside>
     </div>
   </div>
   <p class="intertitle key perf-close">A few settings per character decide how they sound.</p>
-  <aside class="notes">You heard how differently Oppenheimer and Rick talk.
-[click] Oppenheimer is subtle. No tags get added, so his line goes to TTS as it is.
-[click] Rick is expressive. "Fast speech" becomes a speed tag, "Wait, what?!" becomes surprise, and the burp in his line becomes a sound effect. A few settings per character.</aside>
+  <aside class="notes">Same voice model, two very different performances.
+[click] Oppenheimer is subtle. We add no tags, and his cloned voice carries it.
+[click] Rick is expressive. Fast speech becomes a speed tag, "Wait, what?!" becomes surprise, and his burp becomes a real burp. Just a few settings per character.</aside>
 </section>
 
 <!-- ============ 05 · credits ============ -->
@@ -944,7 +944,7 @@ Come back to the deck at about 5:40.</aside>
     <div class="credit rise" style="--d:0.8s"><p class="label">The face</p><p class="name">Higgs Avatar</p><p class="body">Talking head · look at the pause · fMP4 stream</p></div>
     <div class="credit censor rise" style="--d:1.05s"><p class="label">And as the censor</p><p class="name">Higgs Realtime</p><p class="body">Spoiler guard · the only model that sees the future</p></div>
   </div>
-  <aside class="notes">Everything you just saw runs on Higgs. Realtime is the mind and the voice. TTS 3 gives us the cloned voice with emotion tags. Avatar turns one still into a talking face. And Realtime has a second job, as the spoiler guard.</aside>
+  <aside class="notes">It all runs on Higgs. Realtime is the mind and the voice. TTS 3 clones the voices and adds emotion. Avatar turns one still into a talking face. And Realtime also plays the censor, the only model that sees the future.</aside>
 </section>
 
 <!-- ============ 08 · pipeline ============ -->
@@ -969,9 +969,9 @@ Come back to the deck at about 5:40.</aside>
     <div class="lstep key" style="--k:4"><span class="tc">5</span><p>Guard checks each line</p><em>sees the future</em></div>
     <div class="lstep end" style="--k:5"><span class="tc">6</span><p>Speak, in voice or face</p></div>
   </div>
-  <aside class="notes">Here's the whole pipeline.
-[click] Once per film, we take faces from the video frames, scenes and speakers from the subtitles and screenplay, summaries written one scene at a time, and a cloned voice from the audio.
-[click] Then on every pause, we find the faces, filter to time t, let Realtime write, have the guard check it, and speak.</aside>
+  <aside class="notes">Here's how a film becomes a conversation.
+[click] Once per film: faces from the frames, scenes and speakers from the screenplay and subtitles, summaries written one scene at a time so nothing leaks forward, and a cloned voice.
+[click] Then every pause: find the faces, filter to time t, let Realtime write, and the guard, the only step that sees future scenes, checks each line before he speaks.</aside>
 </section>
 
 <!-- ============ 09 · latency ============ -->

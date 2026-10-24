@@ -65,17 +65,17 @@ Switch to the app. Keep a backup screen recording open in another tab.
 Come back to the deck at about 5:40.
 
 ### 8 · Two performances (0:20)
-You heard how differently Oppenheimer and Rick talk.
-**[click]** Oppenheimer is subtle. No tags get added, so his line goes to TTS as it is.
-**[click]** Rick is expressive. "Fast speech" becomes a speed tag, "Wait, what?!" becomes surprise, and the burp in his line becomes a sound effect. A few settings per character.
+Same voice model, two very different performances.
+**[click]** Oppenheimer is subtle. We add no tags, and his cloned voice carries it.
+**[click]** Rick is expressive. Fast speech becomes a speed tag, "Wait, what?!" becomes surprise, and his burp becomes a real burp. Just a few settings per character.
 
 ### 9 · Three Higgs models (0:20)
-Everything you just saw runs on Higgs. Realtime is the mind and the voice. TTS 3 gives us the cloned voice with emotion tags. Avatar turns one still into a talking face. And Realtime has a second job, as the spoiler guard.
+It all runs on Higgs. Realtime is the mind and the voice. TTS 3 clones the voices and adds emotion. Avatar turns one still into a talking face. And Realtime also plays the censor, the only model that sees the future.
 
 ### 10 · From video.mp4 to a reply (0:30)
-Here's the whole pipeline.
-**[click]** Once per film, we take faces from the video frames, scenes and speakers from the subtitles and screenplay, summaries written one scene at a time, and a cloned voice from the audio.
-**[click]** Then on every pause, we find the faces, filter to time t, let Realtime write, have the guard check it, and speak.
+Here's how a film becomes a conversation.
+**[click]** Once per film: faces from the frames, scenes and speakers from the screenplay and subtitles, summaries written one scene at a time so nothing leaks forward, and a cloned voice.
+**[click]** Then every pause: find the faces, filter to time t, let Realtime write, and the guard, the only step that sees future scenes, checks each line before he speaks.
 
 ### 11 · Latency budget (0:15)
 We measured every call. Realtime's first audio arrives in about 0.4 seconds. The lip-synced face needs about three. So voice comes first, and the face is opt-in.
