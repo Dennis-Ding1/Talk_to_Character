@@ -1,0 +1,1327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talk to Character</title>
+<!--
+  Talk to Character · 10-minute pitch deck
+  Click / → / Space: next build or slide · ←: back · Home / End
+  F: fullscreen · N: speaker notes + timer · T: restart the timer
+  index.html?built#7 opens slide 7 with all its builds shown
+  Each slide is a <section class="slide">. data-steps = number of clicks it builds in,
+  data-time = planned seconds (the notes timer uses it), data-section = the label at the top.
+  Speaker notes live in <aside class="notes">.
+-->
+<style>
+  :root {
+    --velvet-deep: #1c060b;
+    --velvet: #4a111c;
+    --velvet-fold: #5e1724;
+    --velvet-panel: #360c15;
+    --velvet-sunk: #2a0910;
+    --house-dark: #12040a;
+    --silver: #eee9e2;
+    --text-2: #d9bfbb;
+    --text-3: #b08f8d;
+    --line: rgba(238, 233, 226, 0.16);
+    --line-strong: rgba(238, 233, 226, 0.32);
+    --gold: #f2c27a;
+    --gold-ink: #2b1405;
+    --danger: #ff9a88;
+    /* one plain, readable face for everything people read on a projector */
+    --sans: Arial, "Helvetica Neue", Helvetica, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --house: 700ms;
+    /* every lived strip shares one film: 00:47:12 of a 3-hour running time */
+    --lived: 26.2%;
+    --rt: #3b8bd4;
+    --tts: #d0702c;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #070203; overflow: hidden; }
+  body { font-family: var(--sans); color: var(--silver); -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--gold); color: var(--gold-ink); }
+
+  #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden; background: var(--house-dark); }
+
+  /* ---------- slide shell: one room, lit from above ---------- */
+  .slide {
+    position: absolute; inset: 0; padding: 120px 128px 160px;
+    display: flex; flex-direction: column; gap: 40px;
+    background:
+      radial-gradient(ellipse 80% 75% at 50% 45%, transparent 60%, rgba(10, 2, 5, 0.45) 100%),
+      radial-gradient(ellipse 90% 70% at 50% -12%, var(--velvet) 0%, var(--velvet-sunk) 46%, var(--velvet-deep) 100%);
+    opacity: 0; visibility: hidden; filter: blur(6px);
+    transition: opacity 0.9s var(--ease), filter 0.9s var(--ease), visibility 0.9s;
+  }
+  .slide.active { opacity: 1; visibility: visible; filter: none; }
+  .slide > .notes { display: none; }
+  .instant, .instant * { transition: none !important; }
+
+  .grain { position: absolute; inset: -80px; pointer-events: none; z-index: 21; opacity: 0.06; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    animation: grain 0.9s steps(6) infinite; }
+  @keyframes grain { 0% { transform: translate(0, 0); } 25% { transform: translate(-30px, 18px); } 50% { transform: translate(24px, -26px); } 75% { transform: translate(-16px, 30px); } 100% { transform: translate(0, 0); } }
+  /* the lived span of the talk itself */
+  #reel { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--gold); z-index: 22; transition: width 1s var(--ease); }
+
+  /* ---------- type ---------- */
+  .title { font-size: 76px; font-weight: 700; line-height: 1.05; letter-spacing: -0.015em; text-wrap: balance; }
+  .label { font-size: 22px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+  .tc { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .body { font-size: 28px; line-height: 1.45; color: var(--text-2); }
+  .small { font-size: 22px; line-height: 1.4; color: var(--text-3); }
+  h3 { font-size: 36px; font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
+
+  .footer { position: absolute; left: 128px; right: 128px; bottom: 60px; display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 19px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+  .footer .tc { font-size: 20px; letter-spacing: 0; font-weight: 400; }
+  /* where we are in the talk: set in the top margin so it never moves the slide's layout */
+  .section { position: absolute; left: 128px; top: 50px; font-size: 30px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); }
+  .screen .section { color: var(--velvet); }
+
+  /* intertitle cards: machinery states between double hairlines */
+  .intertitle { position: relative; padding: 14px 12px 12px; text-align: center; font-weight: 700; font-size: 24px; line-height: 1.2;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--silver); border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); }
+  .intertitle::before, .intertitle::after { content: ""; position: absolute; left: 0; right: 0; height: 1px; background: var(--line); }
+  .intertitle::before { top: 4px; } .intertitle::after { bottom: 4px; }
+  .intertitle.quiet { color: var(--text-3); border-color: var(--line); }
+  .intertitle.quiet::before, .intertitle.quiet::after { display: none; }
+  .intertitle.thinking { animation: breathe 1.3s ease-in-out infinite; }
+  .intertitle.key { text-transform: none; letter-spacing: 0; font-size: 34px; line-height: 1.3; padding: 22px 12px 20px; }
+  @keyframes breathe { 50% { opacity: 0.45; } }
+
+  /* redacted bars: written but not yet checked; never their text */
+  .checking { display: flex; flex-direction: column; gap: 14px; padding: 8px 0; }
+  .checking i { display: block; height: 22px; background: linear-gradient(90deg, rgba(238, 233, 226, 0.08), rgba(238, 233, 226, 0.22), rgba(238, 233, 226, 0.08)); background-size: 200% 100%; animation: scan 1.6s linear infinite; }
+  @keyframes scan { to { background-position: -200% 0; } }
+
+  /* voice bars: live, so gold */
+  .bars { display: inline-flex; gap: 5px; align-items: center; height: 26px; }
+  .bars i { width: 5px; height: 100%; background: var(--gold); transform: scaleY(0.3); animation: vu 0.7s ease-in-out infinite alternate; }
+  .bars i:nth-child(2) { animation-delay: -0.2s; } .bars i:nth-child(3) { animation-delay: -0.45s; } .bars i:nth-child(4) { animation-delay: -0.1s; } .bars i:nth-child(5) { animation-delay: -0.35s; }
+  @keyframes vu { to { transform: scaleY(1); } }
+
+  .live-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); position: relative; flex: none; }
+  .live-dot::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--gold); animation: ring 1.6s var(--ease) infinite; }
+  @keyframes ring { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.6); opacity: 0; } }
+
+  /* the lived strip */
+  .lived { display: flex; align-items: center; gap: 22px; }
+  .lived .track { flex: 1; height: 4px; background: rgba(238, 233, 226, 0.14); position: relative; }
+  .lived .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--gold); transition: width 2.2s var(--ease); }
+  .lived .tc { font-size: 26px; color: var(--gold); }
+
+  /* entrance primitives: one orchestrated rise per slide */
+  .rise { opacity: 0; transform: translateY(22px); transition: opacity 0.9s var(--ease), transform 1.1s var(--ease); transition-delay: var(--d, 0.15s); }
+  .active .rise { opacity: 1; transform: none; }
+  .words > span { display: inline-block; opacity: 0; transform: translateY(0.35em); filter: blur(10px);
+    transition: opacity 1s var(--ease), transform 1.2s var(--ease), filter 1s var(--ease); transition-delay: calc(var(--d, 0.1s) + var(--i) * 70ms); }
+  .active .words > span { opacity: 1; transform: none; filter: none; }
+
+  /* dialogue, as in the app: the character in silver, you in rose smoke, right-aligned */
+  .cue { display: block; font-weight: 700; font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
+  .line-you { align-self: flex-end; text-align: right; font-size: 28px; color: var(--text-2); }
+  .line-them { font-size: 38px; line-height: 1.32; color: var(--silver); }
+
+  /* ======================= cover & close ======================= */
+  .curtained { align-items: center; justify-content: center; text-align: center; padding: 120px 360px 160px;
+    background: radial-gradient(ellipse 70% 60% at 50% 48%, var(--velvet-panel) 0%, var(--velvet-sunk) 50%, var(--velvet-deep) 100%); }
+  .curtained .footer { display: none; }
+  .curtain { position: absolute; top: 0; bottom: 0; width: 51%; z-index: 4; pointer-events: none;
+    background: repeating-linear-gradient(90deg, var(--velvet) 0px, var(--velvet) 48px, var(--velvet-sunk) 48px, var(--velvet-sunk) 96px);
+    transition: transform 2.6s cubic-bezier(0.7, 0, 0.18, 1) 0.35s; }
+  .curtain.l { left: 0; transform-origin: left center; box-shadow: 30px 0 60px -10px rgba(0, 0, 0, 0.7); }
+  .curtain.r { right: 0; transform-origin: right center; box-shadow: -30px 0 60px -10px rgba(0, 0, 0, 0.7); }
+  .open.active .curtain.l { transform: translateX(-250px) scaleX(0.5); }
+  .open.active .curtain.r { transform: translateX(250px) scaleX(0.5); }
+  .closing .curtain.l { transform: translateX(-250px) scaleX(0.5); }
+  .closing .curtain.r { transform: translateX(250px) scaleX(0.5); }
+  .closing.active .curtain.l { transform: translateX(-170px) scaleX(0.62); transition-delay: 0.5s; }
+  .closing.active .curtain.r { transform: translateX(170px) scaleX(0.62); transition-delay: 0.5s; }
+  .valance { position: absolute; left: 0; right: 0; top: 0; height: 64px; z-index: 5;
+    background: var(--velvet-fold); border-bottom: 1px solid var(--line-strong); box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.75); }
+  /* the follow-spot: the light lands by darkening everything outside it */
+  .house-spot { position: absolute; left: 50%; top: 47%; width: 1360px; height: 820px; border-radius: 50%; z-index: 1; pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.7); opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255, 240, 220, 0.11) 0%, rgba(255, 240, 220, 0.04) 50%, transparent 70%);
+    box-shadow: 0 0 0 200vmax rgba(8, 2, 4, 0.55), 0 0 160px 80px rgba(8, 2, 4, 0.55) inset;
+    transition: opacity 1.6s ease 1.5s, transform 2.4s var(--ease) 1.5s; }
+  .curtained.active .house-spot { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .curtained .content { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 38px; }
+  .hero { font-weight: 700; font-size: 168px; line-height: 0.98; letter-spacing: -0.03em; }
+  .open { padding: 120px 250px 160px; }
+  .hero.one-line { font-size: 140px; white-space: nowrap; }
+  .subtitle { font-size: 40px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--text-2); margin-top: -12px; }
+  .open .subtitle { color: var(--silver); }
+  /* cover: a paused film, then the character breaks out of it */
+  .cover-stage { position: absolute; inset: 0; z-index: 3; }
+  .screen-frame { position: absolute; left: 460px; top: 196px; width: 1000px; height: 562px; perspective: 1400px; }
+  .screen-frame > div, .screen-frame > svg { position: absolute; inset: 0; }
+  .screen-img { background-size: 100% 100%; box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.75), 0 2px 6px rgba(0, 0, 0, 0.5); filter: brightness(0.82) saturate(0.85); }
+  .shard { position: absolute; inset: 0; background-size: 100% 100%; opacity: 0; filter: brightness(var(--b)) saturate(0.85); backface-visibility: hidden; }
+  .crack { overflow: hidden; pointer-events: none; }
+  .crack path { fill: none; stroke: #f6efe4; stroke-width: 2.5; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .flash { background: #fff8ec; opacity: 0; }
+  .cover-lived { position: absolute; left: 460px; top: 792px; width: 1000px; transition: opacity 0.4s 1.4s; }
+  .cover-lived .lived .fill { width: var(--at, 26.1%); transition: width 0.9s linear; }
+  .cover-lived .pstate { color: var(--gold); }
+  .stepper { position: absolute; left: 440px; top: 420px; width: 640px; height: 796px; transform-origin: 0 0; z-index: 2;
+    transform: translate(197px, -72px) scale(0.52); filter: brightness(0.82);
+    transition: transform 1.6s cubic-bezier(0.16, 1, 0.3, 1) 1.7s, filter 1s 1.7s; }
+  .say { position: absolute; left: 1090px; top: 580px; width: 600px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; text-align: left; opacity: 0; transform: translateY(16px);
+    transition: opacity 0.6s var(--ease) 2.8s, transform 0.8s var(--ease) 2.8s; }
+  .say .line-them { font-size: 40px; min-height: 3.96em; }
+  .say .bars { height: 30px; }
+  .cover-title { position: absolute; left: 0; right: 0; top: 110px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px;
+    opacity: 0; transform: translateY(-16px); transition: opacity 0.9s var(--ease) 3.9s, transform 1.1s var(--ease) 3.9s; }
+  .cover-title .hero { font-size: 124px; }
+  .cover-title .subtitle { margin-top: 0; }
+
+  .s1 .crack path { animation: draw 0.45s ease-out forwards; animation-delay: calc(0.8s + var(--k) * 18ms); }
+  .s1 .crack { animation: gone 0.35s ease-in 1.85s forwards; }
+  .s1 .flash { animation: flash 0.4s ease-out 1.35s; }
+  .s1 .screen-img { animation: gone 0.01s linear 1.48s forwards; }
+  .s1 .shard { animation: fly 1.4s cubic-bezier(0.2, 0.7, 0.3, 1) 1.48s forwards; }
+  .s1 .cover-lived { opacity: 0; }
+  .stepper > g { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 3.6s ease-in-out infinite; }
+  .s1 .stepper > g { animation-play-state: paused; }
+  .s1 .stepper { transform: none; filter: brightness(1); }
+  .s1 .say, .s1 .cover-title { opacity: 1; transform: none; }
+  .instant .crack path, .instant .crack, .instant .flash, .instant .screen-img, .instant .shard { animation-duration: 0.001s !important; animation-delay: 0s !important; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes gone { to { opacity: 0; } }
+  @keyframes flash { 0% { opacity: 0; } 25% { opacity: 0.6; } 100% { opacity: 0; } }
+  @keyframes fly { 0% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; transform: var(--fly); } }
+  .names.spaced { display: flex; gap: 56px; justify-content: center; }
+  .names { font-size: 30px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-2); }
+  .curtained .lede { font-size: 36px; line-height: 1.42; color: var(--text-2); max-width: 1120px; text-wrap: balance; }
+  .curtained .lived { width: 1040px; }
+  .curtained.active .lived .fill { width: var(--lived); transition-delay: 2.7s; }
+  .closing.active .lived .fill { transition-delay: 1.6s; }
+  .closing .lived { width: 860px; }
+  .closing .hero { font-size: 132px; }
+
+  /* ======================= hook ======================= */
+  .duel { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; flex: 1; }
+  .duel .side { display: flex; flex-direction: column; gap: 24px; border-top: 1px solid var(--line-strong); padding-top: 30px; }
+  .duel .side > .label { color: var(--silver); }
+  .duel .side > .label .tc { font-size: 22px; letter-spacing: 0.02em; }
+  .typed { min-height: 3.96em; }
+  .typed:not(.done)::after { content: ""; display: inline-block; width: 3px; height: 0.9em; margin-left: 6px; vertical-align: -0.1em; background: var(--text-3); animation: breathe 0.9s steps(1) infinite; }
+  .verdict { opacity: 0; transition: opacity 0.6s var(--ease); }
+  .spoiled .verdict { opacity: 1; }
+  .intertitle.spoil { color: var(--danger); border-color: rgba(255, 154, 136, 0.5); }
+  .intertitle.spoil::before, .intertitle.spoil::after { background: rgba(255, 154, 136, 0.25); }
+  .duel .ours, .duel .bot { opacity: 0; transform: translateY(24px); transition: opacity 0.8s var(--ease), transform 1s var(--ease); }
+  .s1 .duel .bot, .s2 .duel .ours { opacity: 1; transform: none; }
+  .stateline { display: grid; }
+  .stateline > * { grid-area: 1 / 1; transition: opacity 0.4s; }
+  .stateline .now { opacity: 0; display: flex; align-items: center; justify-content: center; gap: 18px; color: var(--gold); }
+  .answer { display: grid; min-height: 3.96em; }
+  .answer > * { grid-area: 1 / 1; transition: opacity 0.4s; }
+  .answer .line-them { opacity: 0; }
+  .answer .line-them .w { color: var(--text-3); transition: color 0.35s; transition-delay: calc(var(--i) * 60ms); }
+  .s2 .ours .stateline .wait, .s2 .ours .answer .checking { opacity: 0; transition-delay: 0.8s; }
+  .s2 .ours .stateline .now, .s2 .ours .answer .line-them { opacity: 1; transition-delay: 0.8s; }
+  .s2 .ours .answer .line-them .w { color: var(--silver); transition-delay: calc(0.9s + var(--i) * 60ms); }
+  .ours .verdict { transition-delay: 1.7s; }
+  .s2 .ours .verdict { opacity: 1; }
+
+  /* ======================= the screen ======================= */
+  .screen { background: var(--silver); color: var(--velvet-deep); justify-content: center; gap: 56px; }
+  .screen .footer { color: var(--velvet); }
+  .screen .hero { font-size: 108px; line-height: 1.04; }
+  .screen .lede { font-size: 40px; line-height: 1.4; color: var(--velvet); max-width: 1240px; }
+  .screen .lived { width: 1240px; }
+  .screen .lived .track { background: rgba(74, 17, 28, 0.18); }
+  .screen .lived .fill { background: var(--velvet); }
+  .screen.active .lived .fill { width: var(--lived); transition-delay: 0.9s; }
+  .screen .lived .tc { color: var(--velvet); }
+  .screen .lived .label { color: var(--velvet); }
+
+  /* ======================= the app at work ======================= */
+  .app-slide { gap: 32px; }
+  .app { display: grid; grid-template-columns: 960px 1fr; gap: 48px; }
+  .film { position: relative; width: 960px; height: 540px; overflow: hidden; background: #000;
+    box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.75), 0 2px 6px rgba(0, 0, 0, 0.5); }
+  .film svg { display: block; width: 100%; height: 100%; transition: filter var(--house) var(--ease); }
+  .s1 .film svg { filter: brightness(0.78) saturate(0.85); }
+  .film .head { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 3.6s ease-in-out infinite; }
+  .film .fig-b .head { animation-duration: 4.4s; animation-delay: -1.3s; }
+  .film .fig-a { animation: drift 7s ease-in-out infinite; }
+  @keyframes sway { 0%, 100% { transform: rotate(-1.2deg) translateY(0); } 50% { transform: rotate(1.4deg) translateY(-3px); } }
+  @keyframes drift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
+  .s1 .film .head, .s1 .film .fig-a { animation-play-state: paused; }
+  .film .chip { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); background: var(--velvet-deep); padding: 8px 18px 6px;
+    font-weight: 700; font-size: 20px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2);
+    opacity: 0; transition: opacity 0.4s; white-space: nowrap; }
+  .s1 .film .chip { opacity: 1; animation: breathe 1.4s ease-in-out infinite; }
+  .s2 .film .chip { opacity: 0; animation: none; }
+  .film .synthetic { position: absolute; right: 14px; bottom: 12px; font-size: 20px; color: rgba(238, 233, 226, 0.55); }
+  .spot { position: absolute; border-radius: 50%; border: 2px dashed rgba(238, 233, 226, 0.95);
+    background: radial-gradient(circle, rgba(255, 240, 220, 0.16) 0%, rgba(255, 240, 220, 0.05) 60%, transparent 72%);
+    box-shadow: 0 0 0 0 rgba(8, 2, 4, 0); opacity: 0; transform: scale(1.25);
+    transition: opacity 0.6s var(--ease), transform 0.6s var(--ease), box-shadow 0.6s var(--ease), border-color 0.3s; }
+  .spot:nth-of-type(2) { transition-delay: 0.09s; }
+  .s2 .spot { opacity: 1; transform: none; }
+  .s3 .spot.chosen { z-index: 1; border: 2px solid var(--silver); box-shadow: 0 0 0 2000px rgba(8, 2, 4, 0.62), 0 0 60px 20px rgba(8, 2, 4, 0.5) inset; }
+  .spot .name { position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%); white-space: nowrap; background: var(--velvet-deep); color: var(--silver);
+    font-family: var(--sans); font-weight: 700; font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase; padding: 5px 12px 4px; }
+  .s3 .spot.chosen .name { background: var(--silver); color: var(--velvet-deep); }
+  .under { display: flex; flex-direction: column; gap: 16px; margin-top: 18px; }
+  .under .lived .fill { background: rgba(238, 233, 226, 0.5); width: var(--lived); transition: background 0.7s; }
+  .s1 .under .lived .fill { background: var(--gold); }
+  .under .lived .tc { color: var(--text-3); transition: color 0.7s; }
+  .s1 .under .lived .tc { color: var(--gold); }
+  .under .lived .state { display: grid; }
+  .under .lived .state > * { grid-area: 1 / 1; transition: opacity 0.4s; }
+  .under .lived .state .b { opacity: 0; }
+  .s1 .under .lived .state .a { opacity: 0; } .s1 .under .lived .state .b { opacity: 1; }
+  .beats4 { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .beats4 p { font-weight: 700; font-size: 22px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3);
+    border-top: 1px solid var(--line); padding-top: 12px; transition: color 0.4s, border-color 0.4s; }
+  .beats4 .tc { font-size: 22px; margin-right: 10px; letter-spacing: 0; }
+  .s1 .beats4 p:nth-child(1), .s2 .beats4 p:nth-child(2), .s3 .beats4 p:nth-child(3), .s4 .beats4 p:nth-child(4) { color: var(--silver); border-color: var(--silver); }
+  .front-row { position: relative; background: var(--velvet-panel); box-shadow: -18px 0 48px -12px rgba(0, 0, 0, 0.55); height: 540px; overflow: hidden;
+    display: flex; flex-direction: column; opacity: 0; transform: translateX(28px); transition: opacity 0.65s var(--ease), transform 0.65s var(--ease); }
+  .s3 .front-row { opacity: 1; transform: none; }
+  .portrait { position: relative; height: 210px; flex: none; background: var(--velvet-fold); overflow: hidden; }
+  .portrait svg { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); height: 196px; }
+  .portrait::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(54, 12, 21, 0.6) 0%, transparent 30%, transparent 45%, var(--velvet-panel) 100%); }
+  .portrait .ai { position: absolute; left: 18px; top: 16px; z-index: 1; background: rgba(28, 6, 11, 0.7); padding: 5px 10px 4px;
+    font-weight: 700; font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--silver); }
+  /* the name sits under the picture, never over the face (as in the app) */
+  .front-row .who { padding: 16px 24px 0; font-weight: 700; font-size: 40px; line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; }
+  .talk { flex: 1; display: flex; flex-direction: column; gap: 18px; padding: 16px 24px 22px; }
+  .talk .line-you { font-size: 24px; opacity: 0; transition: opacity 0.5s 0.2s; }
+  .talk .intertitle { font-size: 20px; opacity: 0; transition: opacity 0.4s 0.8s; }
+  .talk .line-them { font-size: 28px; line-height: 1.4; opacity: 0; transition: opacity 0.4s 2.2s; }
+  .s4 .talk .line-you, .s4 .talk .intertitle, .s4 .talk .line-them { opacity: 1; }
+  .talk .stateline .now { justify-content: center; }
+  .s4 .talk .stateline .wait { opacity: 0; transition-delay: 2.2s; }
+  .s4 .talk .stateline .now { opacity: 1; transition-delay: 2.2s; }
+
+  /* ======================= credits ======================= */
+  .credits { display: flex; flex-direction: column; border-top: 1px solid var(--line-strong); }
+  .credit { display: grid; grid-template-columns: 340px 440px 1fr; gap: 40px; align-items: baseline; padding: 28px 0; border-bottom: 1px solid var(--line); }
+  .credit .label { text-align: right; }
+  .credit .name { font-weight: 700; font-size: 44px; line-height: 1.05; letter-spacing: -0.01em; }
+  .credit .body { font-size: 30px; color: var(--text-2); }
+  .credit.censor .name { color: var(--text-2); }
+
+  /* ======================= demo cue ======================= */
+  .house-up { background: linear-gradient(180deg, var(--velvet-fold) 0%, var(--velvet) 38%, var(--velvet-sunk) 100%); align-items: center; justify-content: center; }
+  .house-up .footer { color: var(--text-2); }
+  .house-up .hero { font-size: 220px; letter-spacing: -0.035em; }
+
+  /* ======================= two performances ======================= */
+  .perfs { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
+  .perf { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--line-strong); padding-top: 26px;
+    opacity: 0; transform: translateY(24px); transition: opacity 0.8s var(--ease), transform 1s var(--ease); }
+  .s1 .perf.opp, .s2 .perf.rick { opacity: 1; transform: none; }
+  .perf > .label:first-child { color: var(--silver); }
+  .perf h3 { font-size: 44px; }
+  .pairs { display: grid; grid-template-columns: auto 1fr; column-gap: 28px; margin-top: 10px; border-top: 1px solid var(--line); }
+  .pairs .tc { font-size: 24px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .pairs .k { color: var(--text-2); }
+  .pairs .v { color: var(--silver); font-weight: 700; }
+  .pairs .v.quiet { color: var(--text-3); font-weight: 400; }
+  .perf-close { opacity: 0; transition: opacity 0.8s 1.2s; }
+  .s2 .perf-close { opacity: 1; }
+
+  /* ======================= never spoil: three layers on one stage ======================= */
+  .spoil-slide { gap: 36px; }
+  .layers { display: grid; grid-template-columns: 380px 1fr; gap: 64px; }
+  .rail { display: flex; flex-direction: column; }
+  .rail .layer { display: flex; flex-direction: column; gap: 12px; padding: 40px 0 42px; border-top: 1px solid var(--line); transition: border-color 0.5s; }
+  .rail .layer:last-child { border-bottom: 1px solid var(--line); }
+  .rail .layer .tc { font-size: 22px; color: var(--text-3); transition: color 0.5s; }
+  .rail .layer h3 { font-size: 38px; color: var(--text-3); transition: color 0.5s; }
+  .rail .layer .body { font-size: 22px; line-height: 1.4; color: var(--text-3); transition: color 0.5s; }
+  .rail .layer.on { border-color: var(--silver); }
+  .rail .layer.on h3 { color: var(--silver); } .rail .layer.on .body { color: var(--text-2); } .rail .layer.on .tc { color: var(--gold); }
+  .panes { position: relative; height: 580px; }
+  .pane { position: absolute; inset: 0; opacity: 0; transform: translateY(16px); transition: opacity 0.7s var(--ease), transform 0.9s var(--ease); pointer-events: none; }
+  .pane.on { opacity: 1; transform: none; }
+
+  /* layer 1 */
+  .timeline { position: relative; padding-top: 60px; }
+  .blocks { display: flex; gap: 8px; height: 330px; }
+  .blk { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; padding: 16px; position: relative;
+    background: var(--velvet); border-top: 3px solid var(--silver);
+    transition: background 0.8s var(--ease), border-color 0.8s; transition-delay: var(--d, 0s); }
+  .blk .tc { font-size: 24px; color: var(--text-2); transition: color 0.6s; }
+  .blk .st { font-size: 25px; font-weight: 700; opacity: 0; transform: translateY(8px); transition: opacity 0.6s var(--ease), transform 0.6s var(--ease), color 0.6s; transition-delay: calc(var(--d, 0s) + 0.3s); }
+  .blk::after { content: ""; position: absolute; inset: 0; border: 1px dashed var(--line-strong); opacity: 0; transition: opacity 0.6s; transition-delay: var(--d, 0s); }
+  .s1 .blk .st { opacity: 1; transform: none; }
+  .s1 .blk.future { background: transparent; border-top-color: transparent; }
+  .s1 .blk.future::after, .s1 .blk.out::after, .s1 .blk.half::after { opacity: 1; }
+  .s1 .blk.future .tc, .s1 .blk.future .st, .s1 .blk.out .tc, .s1 .blk.out .st { color: var(--text-3); }
+  .s1 .blk.out { background: transparent; border-top-color: transparent; }
+  .s1 .blk.half { background: linear-gradient(90deg, var(--velvet) 64%, transparent 64%); border-top-color: transparent; }
+  .playhead { position: absolute; top: 0; left: 0; width: 4px; height: 410px; background: var(--gold); z-index: 2; }
+  .playhead .tc { position: absolute; left: 16px; top: 0; font-size: 26px; color: var(--gold); white-space: nowrap; }
+  .pane .legend { margin-top: 40px; font-size: 24px; line-height: 1.45; color: var(--text-2); max-width: 1080px; opacity: 0; transition: opacity 0.6s 0.9s; }
+  .s1 .pane .legend.l1 { opacity: 1; }
+
+  /* layer 2 */
+  .axis { display: grid; margin-bottom: 18px; }
+  .axis > * { grid-area: 1 / 1; transition: opacity 0.5s; }
+  .axis .b { opacity: 0; }
+  .s3 .axis .a { opacity: 0; } .s3 .axis .b { opacity: 1; }
+  .years { position: relative; height: 300px; }
+  .yr { position: absolute; top: 0; width: 190px; height: 300px; padding: 22px; display: flex; flex-direction: column; justify-content: space-between;
+    transform: translateX(var(--screen)); transition: transform 1.3s var(--ease), background 0.6s, border-color 0.6s; transition-delay: var(--d, 0s);
+    border: 1px solid var(--line-strong); background: var(--velvet-sunk); }
+  .s3 .yr { transform: translateX(var(--story)); }
+  .yr .y { font-weight: 700; font-size: 66px; line-height: 1; letter-spacing: -0.02em; }
+  .yr .st { display: grid; font-size: 24px; font-weight: 700; color: var(--text-2); line-height: 1.3; }
+  .yr .st > * { grid-area: 1 / 1; transition: opacity 0.5s 0.9s; }
+  .yr .st .b { opacity: 0; }
+  .s3 .yr .st .a { opacity: 0; } .s3 .yr .st .b { opacity: 1; }
+  .yr .y, .yr .st { transition: color 0.6s 1.1s; }
+  .yr.unseen { border-style: dashed; background: transparent; }
+  .yr.unseen .y { color: rgba(238, 233, 226, 0.3); }
+  .yr.unseen .st { color: var(--text-3); }
+  .yr.now { border: 2px solid var(--gold); background: var(--velvet-panel); }
+  .yr.now .y, .yr.now .st { color: var(--gold); }
+  .s3 .yr.later { border-style: dashed; background: transparent; transition-delay: 1.1s; }
+  .s3 .yr.later .y { color: rgba(238, 233, 226, 0.3); }
+  .s3 .yr.later .st { color: var(--text-3); }
+  .s3 .yr.known { background: var(--velvet); border-color: var(--silver); transition-delay: 1.1s; }
+  .pane .rule { margin-top: 48px; opacity: 0; transition: opacity 0.8s 1.5s; }
+  .s3 .pane .rule { opacity: 1; }
+  .pane .rule .intertitle { font-size: 26px; }
+
+  /* layer 3 */
+  .guard { display: grid; grid-template-columns: 520px 1fr; column-gap: 56px; }
+  .guard .check { display: grid; }
+  .guard .check > * { grid-area: 1 / 1; align-self: center; }
+  .guard .head { font-size: 19px; padding-bottom: 14px; border-bottom: 1px solid var(--line-strong); }
+  .guard .cell { padding: 24px 0; border-bottom: 1px solid var(--line); min-height: 160px; display: flex; flex-direction: column; justify-content: center; }
+  .guard .checking { padding: 0; }
+  .guard .checking i { height: 20px; }
+  .guard .vd, .guard .said { opacity: 0; transform: translateY(10px); transition: opacity 0.5s var(--ease), transform 0.6s var(--ease); }
+  .guard .vd { font-size: 28px; line-height: 1.35; color: var(--text-2); }
+  .guard .vd b { display: block; font-size: 19px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--silver); margin-bottom: 4px; }
+  .guard .vd.flag b, .guard .vd.flag { color: var(--danger); }
+  .guard .said { font-size: 33px; line-height: 1.35; color: var(--silver); }
+  .guard .said.rewrite { font-style: italic; }
+  .s4 .guard .vd, .s4 .guard .said { opacity: 1; transform: none; }
+  .guard .checking { transition: opacity 0.4s; }
+  .s4 .guard .checking { opacity: 0; transition-delay: var(--done); }
+  .s4 .guard .vd { transition-delay: var(--v); } .s4 .guard .said { transition-delay: var(--s); }
+  .spoil-close { margin-top: auto; opacity: 0; transition: opacity 0.9s var(--ease) 0.3s; }
+  .active .spoil-close { opacity: 1; }
+
+  /* ======================= pipeline ======================= */
+  .pipe-slide .col-head { position: absolute; top: 236px; color: var(--silver); }
+  .pipe-slide .col-head.left { left: 128px; }
+  .pipe-slide .col-head.right { left: 1180px; opacity: 0; transition: opacity 0.5s; }
+  .s2.pipe-slide .col-head.right { opacity: 1; }
+  .prep { position: absolute; left: 128px; top: 300px; width: 572px; display: flex; flex-direction: column; gap: 26px; }
+  .pbox { height: 110px; padding: 14px 20px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto 1fr; column-gap: 16px; align-items: end;
+    background: var(--velvet-sunk); border-left: 1px solid var(--line-strong); border-top: 1px solid var(--line);
+    opacity: 0; transform: translateX(-20px); transition: opacity 0.6s var(--ease), transform 0.8s var(--ease); transition-delay: calc(var(--k) * 0.22s); }
+  .pbox .src { grid-column: 1 / 3; font-size: 19px; color: var(--text-3); align-self: start; }
+  .pbox h3 { font-size: 32px; }
+  .pbox .out { font-size: 20px; color: var(--text-2); }
+  .s1 .pbox { opacity: 1; transform: none; }
+  .live-steps { position: absolute; left: 1180px; top: 290px; width: 612px; display: flex; flex-direction: column; gap: 20px; }
+  .lstep { height: 84px; display: flex; align-items: center; gap: 22px; padding: 14px 22px; border: 1px solid var(--line); color: var(--text-3);
+    opacity: 0.25; transition: opacity 0.4s, color 0.4s, border-color 0.4s, background 0.4s; transition-delay: calc(var(--k) * 0.45s); }
+  .lstep .tc { font-size: 22px; }
+  .lstep p { font-size: 27px; font-weight: 700; flex: 1; }
+  .lstep em { font-style: normal; font-size: 19px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .pipe-slide .live-steps { opacity: 0; transition: opacity 0.4s; }
+  .s1.pipe-slide .live-steps { opacity: 1; }
+  .s2 .lstep { opacity: 1; color: var(--silver); border-color: var(--line-strong); background: var(--velvet-sunk); }
+  .s2 .lstep.key { border: 2px solid var(--silver); }
+  .s2 .lstep.key em { color: var(--text-2); }
+  .s2 .lstep.end { border-color: var(--gold); color: var(--gold); }
+  .wires { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; overflow: visible; }
+  .wire { fill: none; stroke: var(--line-strong); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 0.6s ease-out, stroke 0.4s; transition-delay: calc(var(--k) * 0.45s); }
+  .wire.future { stroke-dasharray: 0.012 0.012; stroke-dashoffset: 0; opacity: 0; transition: opacity 0.5s; transition-delay: calc(var(--k) * 0.45s); }
+  .s2 .wire { stroke-dashoffset: 0; stroke: var(--text-2); }
+  .s2 .wire.future { opacity: 1; stroke: var(--silver); }
+  .wire-tag { font-family: var(--sans); font-size: 19px; font-weight: 700; letter-spacing: 0.08em; fill: var(--text-2); text-transform: uppercase; opacity: 0; transition: opacity 0.5s 1.9s; }
+  .s2 .wire-tag { opacity: 1; }
+
+  /* ======================= bar charts (latency, tradeoff) ======================= */
+  .wf { display: flex; flex-direction: column; }
+  .wf-row { display: grid; grid-template-columns: 520px 1fr; gap: 40px; align-items: center; padding: 26px 0; border-bottom: 1px solid var(--line); }
+  .wf-row:first-child { border-top: 1px solid var(--line-strong); }
+  .wf-row .body { font-size: 28px; }
+  .wf-row .body b { font-weight: 700; color: var(--silver); }
+  .bar { position: relative; height: 28px; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--silver); transition: width 1.4s var(--ease); transition-delay: var(--d); }
+  .bar.slow i { background: var(--text-3); }
+  .bar.mid i { background: var(--text-2); }
+  .active .bar i { width: calc(var(--v) / 10 * 100%); }
+  .bar .tc { position: absolute; top: 50%; left: calc(var(--v) / 10 * 100% + 16px); transform: translateY(-50%); font-size: 24px; color: var(--silver); white-space: nowrap;
+    opacity: 0; transition: opacity 0.5s; transition-delay: calc(var(--d) + 0.9s); }
+  .active .bar .tc { opacity: 1; }
+  .ticks { display: grid; grid-template-columns: 520px 1fr; gap: 40px; padding-top: 12px; }
+  .ticks .scale { position: relative; height: 30px; }
+  .ticks .scale span { position: absolute; transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 22px; color: var(--text-3); }
+  .ticks .scale span:last-child { transform: translateX(-100%); }
+
+  /* tradeoff: two speech paths into Avatar */
+  .paths { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
+  .path { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--line-strong); padding-top: 22px; }
+  .path h3 { display: flex; align-items: center; gap: 16px; font-size: 34px; }
+  /* series colours, validated (validate_palette.js, dark, on #1c060b): Realtime blue, TTS 3 orange */
+  .path h3 i { width: 22px; height: 22px; flex: none; background: var(--rt); }
+  .path.tts h3 i { background: var(--tts); }
+  .path .body { font-size: 25px; line-height: 1.4; }
+  .path .tc { font-size: 22px; color: var(--text-3); }
+  .pair-rows { display: flex; flex-direction: column; }
+  .pair-row { display: grid; grid-template-columns: 300px 1fr; gap: 40px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .pair-row:first-child { border-top: 1px solid var(--line-strong); }
+  .pair-row .body { font-size: 25px; }
+  .pair-row .body b { color: var(--silver); font-weight: 700; }
+  .pair-row .duo { display: flex; flex-direction: column; gap: 10px; }
+  .pair-row .bar { height: 24px; }
+  .pair-row .bar.rt i { background: var(--rt); }
+  .pair-row .bar.tts i { background: var(--tts); }
+  .pair-row .bar .delta { color: var(--silver); font-weight: 700; margin-left: 14px; }
+  .pair-row .bar .tc { font-size: 22px; }
+  .pair-ticks { grid-template-columns: 300px 1fr; }
+
+  /* ======================= craft ======================= */
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 96px; }
+  .instance { display: flex; flex-direction: column; gap: 22px; border-top: 1px solid var(--line-strong); padding-top: 28px; }
+  .instance > .label { color: var(--silver); }
+  .instance .line-them { font-size: 32px; }
+  .instance .line-you { font-size: 26px; }
+  .instance .small { font-size: 23px; color: var(--text-2); }
+  .barge, .waiting { opacity: 0; transform: translateY(24px); transition: opacity 0.8s var(--ease), transform 1s var(--ease); }
+  .s1 .barge, .s2 .waiting { opacity: 1; transform: none; }
+  .barge .tail { transition: color 0.4s 0.9s; }
+  .s1 .barge .tail { color: var(--text-3); }
+  .barge .listen, .barge > .line-you { opacity: 0; transition: opacity 0.5s; }
+  .s1 .barge .listen { opacity: 1; transition-delay: 1.2s; }
+  .s1 .barge > .line-you { opacity: 1; transition-delay: 1.8s; }
+  .intertitle.listen { color: var(--gold); display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .face-demo { display: grid; grid-template-columns: 240px 1fr; gap: 32px; align-items: center; }
+  .mini { position: relative; width: 240px; height: 240px; overflow: hidden; }
+  .mini svg { display: block; width: 100%; height: 100%; }
+  .mini .ai { position: absolute; left: 10px; top: 10px; background: rgba(28, 6, 11, 0.7); padding: 4px 8px 3px; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--silver); }
+  .mini-head { transform-box: view-box; transform-origin: 50% 100%; animation: sway 3.2s ease-in-out infinite; }
+  .eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 3.4s infinite; }
+  @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+  .mouth-talk { opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; }
+  .s2 .mouth-idle { opacity: 0; transition: opacity 0.3s 2.2s; }
+  .s2 .mouth-talk { opacity: 1; transition: opacity 0.3s 2.2s; animation: talk 0.32s ease-in-out 2.2s infinite alternate; }
+  @keyframes talk { from { transform: scaleY(0.3); } to { transform: scaleY(1.1); } }
+  .phase { display: flex; flex-direction: column; gap: 18px; }
+  .phase .stateline .now { justify-content: center; }
+  .s2 .phase .stateline .wait { opacity: 0; transition-delay: 2.2s; }
+  .s2 .phase .stateline .now { opacity: 1; transition-delay: 2.2s; }
+  .steps3 { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .steps3 p { font-size: 20px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); border-top: 2px solid var(--line); padding-top: 10px; transition: color 0.4s, border-color 0.4s; }
+  .steps3 .on1 { color: var(--silver); border-color: var(--silver); }
+  .s2 .steps3 .on1 { color: var(--text-3); border-color: var(--line); transition-delay: 0.9s; }
+  .s2 .steps3 .on2 { color: var(--silver); border-color: var(--silver); transition-delay: 0.9s; }
+  .s2 .steps3 .on3 { color: var(--silver); border-color: var(--silver); transition-delay: 2.2s; }
+
+  /* ======================= limits ======================= */
+  .limits { border-top: 1px solid var(--line-strong); max-width: 1500px; }
+  .limits .item { display: grid; grid-template-columns: 80px 1fr; gap: 24px; align-items: baseline; padding: 26px 0; border-bottom: 1px solid var(--line-strong); }
+  .limits .item h3 { font-size: 34px; margin-bottom: 8px; }
+  .limits .item .body { font-size: 27px; line-height: 1.4; }
+  .limits .item .tc { font-size: 24px; color: var(--text-3); }
+
+
+  /* ======================= fill the page: larger type and spacing on the lighter slides ======================= */
+  /* 2 · idea */
+  .screen .hero { font-size: 124px; }
+  .screen .lede { font-size: 46px; max-width: 1400px; }
+  .screen .lived { width: 1400px; }
+  /* 3 · why not a normal chatbot */
+  #hook .duel .side { gap: 40px; padding-top: 40px; }
+  #hook .duel .side > .label { font-size: 26px; }
+  #hook .line-you { font-size: 36px; }
+  #hook .line-them { font-size: 54px; line-height: 1.28; }
+  #hook .intertitle { font-size: 30px; padding: 20px 12px 18px; }
+  /* 6 · small things */
+  .craft-slide .pair { flex: 1; }
+  .craft-slide .instance { gap: 36px; padding-top: 40px; }
+  .craft-slide .instance > .label { font-size: 26px; }
+  .craft-slide .instance .line-them { font-size: 52px; line-height: 1.28; }
+  .craft-slide .instance .line-you { font-size: 36px; }
+  .craft-slide .intertitle.listen { font-size: 30px; padding: 20px 12px 18px; }
+  .craft-slide .face-demo { grid-template-columns: 400px 1fr; gap: 40px; }
+  .craft-slide .mini { width: 400px; height: 400px; }
+  .craft-slide .mini .ai { font-size: 18px; }
+  .craft-slide .phase .intertitle { font-size: 28px; }
+  .craft-slide .steps3 p { font-size: 22px; }
+  /* 8 · two performances */
+  .perf-slide .perf { gap: 20px; padding-top: 36px; }
+  .perf-slide .perf > .label:first-child { font-size: 26px; }
+  .perf-slide .perf h3 { font-size: 60px; }
+  .perf-slide .pairs .tc { font-size: 30px; padding: 18px 0; }
+  .perf-slide .perf-close { margin-top: auto; }
+  /* 9 · Higgs models */
+  .credits-slide .credit { padding: 46px 0; }
+  .credits-slide .credit .name { font-size: 58px; }
+  .credits-slide .credit .body { font-size: 34px; }
+  .credits-slide .credit .label { font-size: 24px; }
+  /* 12 · emotion tags */
+  .trade-slide .path h3 { font-size: 40px; }
+  .trade-slide .path .body { font-size: 28px; }
+  .trade-slide .pair-row { padding: 26px 0; }
+  .trade-slide .pair-row .body { font-size: 28px; }
+  .trade-slide .pair-row .duo { gap: 12px; }
+  .trade-slide .pair-row .bar { height: 32px; }
+  .trade-slide .pair-row .bar .tc { font-size: 26px; }
+  /* 13 · limits */
+  .limits-slide .limits { max-width: none; }
+  .limits-slide .limits .item { padding: 34px 0; }
+  .limits-slide .limits .item h3 { font-size: 40px; }
+  .limits-slide .limits .item .body { font-size: 30px; }
+
+  /* ---------- presenter chrome, outside the stage ---------- */
+  #notes { position: fixed; left: 0; right: 0; bottom: 0; max-height: 36vh; overflow: auto; z-index: 10; display: none;
+    background: rgba(12, 3, 6, 0.95); border-top: 1px solid var(--line-strong); padding: 16px 28px 20px; color: var(--text-2);
+    font-size: 17px; line-height: 1.55; scrollbar-color: rgba(238, 233, 226, 0.25) transparent; }
+  body.show-notes #notes { display: block; }
+  #notes .clock { display: flex; gap: 28px; font-family: var(--mono); font-size: 14px; color: var(--text-3); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+  #notes .clock b { color: var(--silver); font-weight: 400; }
+  #notes .clock .late { color: var(--danger); }
+  #notes .text { white-space: pre-wrap; max-width: 80ch; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.01s !important; transition-delay: 0s !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+
+<!-- ============ 01 · cover ============ -->
+<section class="slide curtained open" id="cover" data-steps="1" data-time="20" data-section="">
+  <div class="house-spot"></div>
+  <div class="cover-stage">
+    <div class="screen-frame">
+      <div class="screen-img"></div>
+      <div class="shards"></div>
+      <svg class="crack" viewBox="0 0 1000 562" aria-hidden="true"></svg>
+      <div class="flash"></div>
+    </div>
+    <div class="cover-lived"><div class="lived"><span class="tc clock">00:47:00</span><div class="track"><div class="fill"></div></div><span class="label pstate"></span></div></div>
+    <svg class="stepper" viewBox="170 142 320 398" aria-label="A man in a hat steps out of the film">
+      <g fill="none">
+              <path d="M170 540 C178 384 236 322 302 310 L330 352 L358 310 C424 322 482 384 490 540 Z" fill="#120b09"/>
+              <path d="M358 310 C424 322 482 384 490 540" stroke="#c9b48f" stroke-opacity="0.3" stroke-width="3"/>
+              <path d="M312 312 L330 352 L348 312 Z" fill="#4a3d33"/>
+              <path d="M326 330 L334 330 L338 430 L330 444 L322 430 Z" fill="#0a0605"/>
+              <path d="M302 310 L330 420 M358 310 L330 420" stroke="#2c2119" stroke-width="3"/>
+              <rect x="314" y="276" width="32" height="40" fill="#120c0a"/>
+              <ellipse cx="333" cy="234" rx="44" ry="54" fill="#6f5c48"/>
+              <ellipse cx="329" cy="234" rx="44" ry="54" fill="#140e0b"/>
+              <ellipse cx="287" cy="238" rx="7" ry="13" fill="#140e0b"/>
+              <ellipse cx="330" cy="190" rx="80" ry="13" fill="#0b0706"/>
+              <path d="M288 190 C290 154 302 142 330 142 C358 142 370 154 372 190 Z" fill="#0b0706"/>
+              <path d="M360 146 C368 156 371 170 372 190" stroke="#c9b48f" stroke-opacity="0.4" stroke-width="3"/>
+              <rect x="289" y="178" width="82" height="9" fill="#241913"/>
+            </g>
+    </svg>
+    <audio class="voice" src="media/oppenheimer-line.m4a" preload="auto"></audio>
+    <div class="say">
+      <p class="cue">Oppenheimer</p>
+      <p class="line-them typed" data-text="“Wait. You can see me? Then you’ll know how tomorrow goes. Don’t tell me.”"></p>
+      <span class="bars"><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+    <div class="cover-title">
+      <h1 class="hero one-line">Talk to Character</h1>
+      <p class="subtitle">Through the Fourth Wall</p>
+      <p class="names">Haochen Ding · Rolland He · Yinuo Yang</p>
+    </div>
+  </div>
+  <template id="cover-scene"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="cw" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b4a3c"/><stop offset="1" stop-color="#241812"/></linearGradient>
+      <radialGradient id="cwin" cx="0.5" cy="0.4" r="0.75"><stop offset="0" stop-color="#f1e3c4"/><stop offset="1" stop-color="#a08a6a"/></radialGradient>
+    </defs>
+    <rect width="960" height="540" fill="url(#cw)"/>
+    <rect x="520" y="40" width="300" height="260" fill="url(#cwin)" opacity="0.8"/>
+    <path d="M520 170 H820 M670 40 V300" stroke="#3a2b22" stroke-width="10"/>
+    <rect x="0" y="420" width="960" height="120" fill="#1f1510"/>
+    <rect x="60" y="400" width="840" height="24" fill="#3a2a20"/>
+    <g fill="#16100c"><path d="M528 540 C540 398 600 342 662 334 L690 364 L718 334 C780 342 842 398 854 540 Z"/><ellipse cx="690" cy="262" rx="50" ry="56"/><path d="M634 228 C632 196 650 184 690 182 C730 184 750 196 748 228 Z" fill="#0d0907"/><path d="M632 236 Q690 250 750 236 L756 246 Q690 266 626 246 Z" fill="#070404"/></g>
+  </svg></template>
+  <div class="curtain l"></div>
+  <div class="curtain r"></div>
+  <div class="valance"></div>
+  <aside class="notes">Hi, we're Haochen, Rolland and Yinuo. Imagine you're watching a film, and you hit pause.
+[click] The character turns around, breaks through the screen, and talks to you. That's Talk to Character.</aside>
+</section>
+
+<!-- ============ 02 · the idea ============ -->
+<section class="slide screen" data-time="15" data-section="The idea">
+  <h1 class="hero words">They talk to you<br>as they are at <span class="ptime">47:12</span></h1>
+  <p class="lede rise" style="--d:0.6s">Pause anywhere and ask them anything. They remember what they’ve lived through up to that moment, and nothing after.</p>
+  <div class="lived rise" style="--d:0.8s"><span class="tc ptime-full">00:47:12</span><div class="track"><div class="fill"></div></div><span class="label">Not yet</span></div>
+  <aside class="notes">There's one rule. They talk to you as the person they are at the moment you paused. Pause at minute 47, and they remember everything up to minute 47. Nothing after.</aside>
+</section>
+
+<!-- ============ 03 · the hard part ============ -->
+<section class="slide" id="hook" data-steps="2" data-time="25" data-section="The hard part">
+  <h2 class="title words">Why not a normal chatbot?</h2>
+  <div class="duel">
+    <div class="side bot">
+      <p class="label">A generic chatbot</p>
+      <p class="line-you"><span class="cue">You</span>“Did the test work?”</p>
+      <p class="line-them typed" data-text="“Yes. It was a complete success, and a few weeks later it changed the war.”"></p>
+      <p class="intertitle quiet spoil verdict">Knows the whole film</p>
+    </div>
+    <div class="side ours">
+      <p class="label">Oppenheimer, paused at <span class="tc ptime-full">00:47:12</span></p>
+      <p class="line-you"><span class="cue">You</span>“Did the test work?”</p>
+      <div class="stateline intertitle">
+        <span class="wait thinking">Checking each sentence</span>
+        <span class="now">Speaking <span class="bars"><i></i><i></i><i></i><i></i><i></i></span></span>
+      </div>
+      <div class="answer">
+        <div class="checking"><i style="width:94%"></i><i style="width:62%"></i></div>
+        <p class="line-them split">“I can’t tell you that yet. We’ll see.”</p>
+      </div>
+      <p class="intertitle quiet verdict">Not yet · still before the test</p>
+    </div>
+  </div>
+  <aside class="notes">So why not just use a normal chatbot? Because it plays a character like an actor who has read the whole script.
+[click] Ask it whether the test worked, and it just tells you.
+[click] Ours checks every sentence before it's spoken, so he answers like a man who doesn't know yet.</aside>
+</section>
+
+<!-- ============ 07 · never spoil ============ -->
+<section class="slide spoil-slide" id="spoil" data-steps="4" data-time="50" data-section="Never spoil">
+  <h2 class="title words">What keeps them in the moment</h2>
+  <div class="layers">
+    <div class="rail rise" style="--d:0.3s">
+      <div class="layer l1"><p class="tc">1</p><h3>Cut at the pause</h3></div>
+      <div class="layer l2"><p class="tc">2</p><h3>Story time, not screen time</h3></div>
+      <div class="layer l3"><p class="tc">3</p><h3>Check every sentence</h3></div>
+    </div>
+    <div class="panes rise" style="--d:0.45s">
+      <div class="pane p1">
+        <div class="timeline">
+          <div class="blocks">
+            <div class="blk kept" style="--d:0s"><p class="tc">Scene 1</p><p class="st">Kept</p></div>
+            <div class="blk kept" style="--d:0.05s"><p class="tc">Scene 2</p><p class="st">Kept</p></div>
+            <div class="blk out" style="--d:0.1s"><p class="tc">Scene 3</p><p class="st">Not there</p></div>
+            <div class="blk kept" style="--d:0.15s"><p class="tc">Scene 4</p><p class="st">Kept</p></div>
+            <div class="blk half" style="--d:0.2s"><p class="tc">Scene 5</p><p class="st">Half</p></div>
+            <div class="blk future" style="--d:0.3s"><p class="tc">Scene 6</p><p class="st">Future</p></div>
+            <div class="blk future" style="--d:0.38s"><p class="tc">Scene 7</p><p class="st">Future</p></div>
+            <div class="blk future" style="--d:0.46s"><p class="tc">Scene 8</p><p class="st">Future</p></div>
+          </div>
+          <div class="playhead"><span class="tc">00:00:00</span></div>
+        </div>
+      </div>
+      <div class="pane p2">
+        <p class="label axis"><span class="a">In the order you watch it</span><span class="b">In the order he lives it</span></p>
+        <div class="years">
+          <div class="yr later" style="--screen:0px;--story:1030px"><p class="y">1954</p><p class="st"><span class="a">Seen</span><span class="b">Seen · his future</span></p></div>
+          <div class="yr known" style="--screen:206px;--story:0px"><p class="y">1926</p><p class="st"><span class="a">Seen</span><span class="b">Remembers</span></p></div>
+          <div class="yr later" style="--screen:412px;--story:618px"><p class="y">1942</p><p class="st"><span class="a">Seen</span><span class="b">Seen · his future</span></p></div>
+          <div class="yr now" style="--screen:618px;--story:412px"><p class="y">1929</p><p class="st"><span class="a">Paused here</span><span class="b">He is here</span></p></div>
+          <div class="yr unseen" style="--screen:824px;--story:206px"><p class="y">1927</p><p class="st"><span class="a">Not seen yet</span><span class="b">Not seen yet</span></p></div>
+          <div class="yr unseen later" style="--screen:1030px;--story:824px"><p class="y">1945</p><p class="st"><span class="a">Not seen yet</span><span class="b">Not seen yet</span></p></div>
+        </div>
+        <div class="rule"><p class="intertitle">He knows only what you’ve seen that has already happened to him</p></div>
+      </div>
+      <div class="pane p3">
+        <div class="guard">
+          <p class="label head">Checked against the future</p>
+          <p class="label head">Spoken to you</p>
+
+          <div class="cell"><div class="check"><div class="checking" style="--done:0.8s"><i style="width:94%"></i><i style="width:58%"></i></div><p class="vd" style="--v:0.8s"><b>Passes</b>Consistent with what you’ve seen</p></div></div>
+          <div class="cell"><p class="said" style="--s:1.1s">“The gadget is on the tower. The weather is the problem now.”</p></div>
+
+          <div class="cell"><div class="check"><div class="checking" style="--done:2.2s"><i style="width:86%"></i><i style="width:70%"></i></div><p class="vd flag" style="--v:2.2s"><b>Spoiler</b>Confirms a result you haven’t watched. Rewritten.</p></div></div>
+          <div class="cell"><p class="said rewrite" style="--s:2.6s">“I can’t tell you that yet. We’ll see.”</p></div>
+
+          <div class="cell"><div class="check"><div class="checking" style="--done:3.6s"><i style="width:72%"></i></div><p class="vd" style="--v:3.6s"><b>Passes</b>A hope, not an outcome</p></div></div>
+          <div class="cell"><p class="said" style="--s:3.9s">“Right now, all any of us can do is wait.”</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="intertitle key spoil-close">Only the guard sees future events, and the guard never talks to you.</p>
+  <aside class="notes">Here's the rule we built around: only the guard ever sees the future, and the guard never talks to you. Three layers keep it that way. First, the playhead runs to the pause.
+[click] Layer one cuts the knowledge. Nothing after the pause, no scene he wasn't in, and the scene you paused in keeps only its first half.
+[click] Layer two is story time. The film jumps between decades. This is the order you watch it in.
+[click] And this is the order he lived it in. He can't remember 1954, even though you've already seen it.
+[click] Layer three is the guard. It checks every sentence before it's spoken. The second one gives away a result, so it's rewritten in his own voice.</aside>
+</section>
+
+<!-- ============ 04 · the app at work ============ -->
+<section class="slide app-slide" data-steps="4" data-time="30" data-section="The experience">
+  <h2 class="title words">Pause. Click. Talk.</h2>
+  <div class="app">
+    <div>
+      <div class="film">
+        <svg viewBox="0 0 960 540" aria-label="Synthetic film frame: two men in hats, backlit by a window">
+          <defs>
+            <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b4a3c"/><stop offset="1" stop-color="#241812"/></linearGradient>
+            <radialGradient id="win" cx="0.5" cy="0.4" r="0.75"><stop offset="0" stop-color="#f1e3c4"/><stop offset="1" stop-color="#a08a6a"/></radialGradient>
+            <radialGradient id="spill" cx="0.62" cy="0.3" r="0.6"><stop offset="0" stop-color="#f1e3c4" stop-opacity="0.22"/><stop offset="1" stop-color="#f1e3c4" stop-opacity="0"/></radialGradient>
+            <linearGradient id="cloth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0e0907"/><stop offset="0.75" stop-color="#17100c"/><stop offset="1" stop-color="#2c2018"/></linearGradient>
+          </defs>
+          <rect width="960" height="540" fill="url(#wall)"/>
+          <rect x="520" y="40" width="300" height="260" fill="url(#win)" opacity="0.8"/>
+          <path d="M520 170 H820 M670 40 V300" stroke="#3a2b22" stroke-width="10"/>
+          <rect width="960" height="540" fill="url(#spill)"/>
+          <rect x="0" y="420" width="960" height="120" fill="#1f1510"/>
+          <rect x="60" y="400" width="840" height="24" fill="#3a2a20"/>
+
+          <!-- Oppenheimer: slim, porkpie hat, suit and tie -->
+          <g class="fig fig-a">
+            <path d="M170 540 C178 384 236 322 302 310 L330 352 L358 310 C424 322 482 384 490 540 Z" fill="url(#cloth)"/>
+            <path d="M358 310 C424 322 482 384 490 540" fill="none" stroke="#c9b48f" stroke-opacity="0.28" stroke-width="3"/>
+            <path d="M312 312 L330 352 L348 312 Z" fill="#4a3d33"/>
+            <path d="M326 330 L334 330 L338 430 L330 444 L322 430 Z" fill="#0a0605"/>
+            <path d="M302 310 L330 420 M358 310 L330 420" stroke="#2c2119" stroke-width="3" fill="none"/>
+            <rect x="314" y="276" width="32" height="40" fill="#120c0a"/>
+            <g class="head">
+              <ellipse cx="333" cy="234" rx="44" ry="54" fill="#6f5c48"/>
+              <ellipse cx="329" cy="234" rx="44" ry="54" fill="#140e0b"/>
+              <ellipse cx="287" cy="238" rx="7" ry="13" fill="#140e0b"/>
+              <ellipse cx="330" cy="190" rx="80" ry="13" fill="#0b0706"/>
+              <path d="M288 190 C290 154 302 142 330 142 C358 142 370 154 372 190 Z" fill="#0b0706"/>
+              <path d="M360 146 C368 156 371 170 372 190" fill="none" stroke="#c9b48f" stroke-opacity="0.35" stroke-width="3"/>
+              <rect x="289" y="178" width="82" height="9" fill="#241913"/>
+            </g>
+          </g>
+
+          <!-- Groves: broad, peaked military cap, uniform -->
+          <g class="fig fig-b">
+            <path d="M528 540 C540 398 600 342 662 334 L690 364 L718 334 C780 342 842 398 854 540 Z" fill="url(#cloth)"/>
+            <path d="M718 334 C780 342 842 398 854 540" fill="none" stroke="#c9b48f" stroke-opacity="0.22" stroke-width="3"/>
+            <path d="M664 336 L690 366 L716 336 Z" fill="#3a2f27"/>
+            <path d="M600 372 L652 352 M780 372 L728 352" stroke="#3a2c22" stroke-width="6"/>
+            <rect x="670" y="302" width="40" height="40" fill="#120c0a"/>
+            <g class="head">
+              <ellipse cx="694" cy="262" rx="50" ry="56" fill="#6f5c48"/>
+              <ellipse cx="690" cy="262" rx="50" ry="56" fill="#16100c"/>
+              <ellipse cx="641" cy="266" rx="8" ry="14" fill="#16100c"/>
+              <path d="M634 228 C632 196 650 184 690 182 C730 184 750 196 748 228 Z" fill="#0d0907"/>
+              <rect x="636" y="222" width="110" height="14" fill="#2a1f17"/>
+              <path d="M632 236 Q690 250 750 236 L756 246 Q690 266 626 246 Z" fill="#070404"/>
+              <circle cx="690" cy="216" r="6" fill="#8a7458"/>
+            </g>
+          </g>
+        </svg>
+        <span class="chip">Finding faces</span>
+        <button class="spot chosen" style="left:252px;top:150px;width:156px;height:156px" tabindex="-1" aria-label="Oppenheimer"><span class="name">Oppenheimer</span></button>
+        <button class="spot" style="left:610px;top:172px;width:160px;height:160px" tabindex="-1" aria-label="Groves"><span class="name">Groves</span></button>
+        <span class="synthetic">Synthetic frame</span>
+      </div>
+      <div class="under">
+        <div class="lived"><span class="tc">00:47:12</span><div class="track"><div class="fill"></div></div><span class="label state"><span class="a">Playing</span><span class="b">Not yet</span></span></div>
+        <div class="beats4"><p><span class="tc">1</span>Pause</p><p><span class="tc">2</span>Faces found</p><p><span class="tc">3</span>Click one</p><p><span class="tc">4</span>Talk</p></div>
+      </div>
+    </div>
+    <div class="front-row">
+      <div class="portrait">
+        <svg viewBox="0 0 300 230" aria-hidden="true"><g fill="#3a0b14"><path d="M30 230 C38 160 84 140 134 134 L150 160 L166 134 C216 140 262 160 270 230 Z"/><rect x="134" y="112" width="32" height="30"/><ellipse cx="150" cy="86" rx="40" ry="48"/><ellipse cx="150" cy="46" rx="72" ry="12"/><path d="M112 46 C114 14 126 4 150 4 C174 4 186 14 188 46 Z"/></g></svg>
+        <span class="ai">AI voice &amp; likeness</span>
+      </div>
+      <p class="who">Oppenheimer</p>
+      <div class="talk">
+        <p class="line-you"><span class="cue">You</span>“Are you nervous about tomorrow?”</p>
+        <div class="stateline intertitle">
+          <span class="wait thinking">Checking each sentence</span>
+          <span class="now">Speaking <span class="bars"><i></i><i></i><i></i><i></i><i></i></span></span>
+        </div>
+        <p class="line-them">“Nervous? I’ve run the numbers a thousand times. Ask me again at dawn.”</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Here's what it looks like in the app.
+[click] You pause, and the room lights come up.
+[click] We find the faces in that exact frame.
+[click] Click one, and the character takes a seat.
+[click] Then you just talk, by voice or by text, in any language, and the reply comes back in their cloned voice.</aside>
+</section>
+
+<!-- ============ 11 · craft ============ -->
+<section class="slide craft-slide" data-steps="2" data-time="20" data-section="The experience">
+  <h2 class="title words">Small things that make it feel live</h2>
+  <div class="pair">
+    <div class="instance barge">
+      <p class="label">Interrupt any time</p>
+      <p class="line-them">“The trouble with implosion is that the timing has to be <span class="tail">perfect to a millionth of a&nbsp;second—”</span></p>
+      <p class="intertitle listen"><span class="live-dot"></span>Listening</p>
+      <p class="line-you"><span class="cue">You</span>“Wait, what’s implosion?”</p>
+    </div>
+    <div class="instance waiting">
+      <p class="label">The face never freezes</p>
+      <div class="face-demo">
+        <div class="mini">
+          <svg viewBox="0 0 240 240" aria-label="Illustrated avatar, idle then talking">
+            <rect width="240" height="240" fill="#5e1724"/>
+            <g class="mini-head">
+              <path d="M40 240 C48 186 88 168 120 166 C152 168 192 186 200 240 Z" fill="#2a0910"/>
+              <rect x="104" y="140" width="32" height="32" fill="#8c6b5e"/>
+              <ellipse cx="120" cy="112" rx="44" ry="52" fill="#8f6c5f"/><path d="M78 118 C82 150 100 164 120 164 C140 164 158 150 162 118 C150 142 136 152 120 152 C104 152 90 142 78 118 Z" fill="#7a5a4f"/><path d="M92 98 L112 96 M128 96 L148 98" stroke="#2a0910" stroke-width="4" stroke-linecap="square"/><path d="M120 110 L116 128 L122 129" fill="none" stroke="#6e5046" stroke-width="3"/>
+              <ellipse cx="120" cy="70" rx="74" ry="12" fill="#1c060b"/>
+              <path d="M80 70 C82 38 96 26 120 26 C144 26 158 38 160 70 Z" fill="#1c060b"/>
+              <g class="eyes"><ellipse cx="102" cy="109" rx="5" ry="4" fill="#1c060b"/><ellipse cx="138" cy="109" rx="5" ry="4" fill="#1c060b"/></g>
+              <rect class="mouth-idle" x="109" y="139" width="22" height="3" fill="#3a0b14"/>
+              <ellipse class="mouth-talk" cx="120" cy="140" rx="9" ry="4.5" fill="#2a0910"/>
+            </g>
+          </svg>
+          <span class="ai">Illustration</span>
+        </div>
+        <div class="phase">
+          <p class="intertitle quiet stateline"><span class="wait">Idle loop · rendering the reply</span><span class="now">Speaking <span class="bars"><i></i><i></i><i></i><i></i><i></i></span></span></p>
+          <div class="steps3"><p class="on1">Idle loop</p><p class="on2">1 s buffer</p><p class="on3">Cross-fade</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Two small things make it feel live.
+[click] You can cut him off mid-sentence, and he stops and listens.
+[click] And while the avatar renders, an idle clip keeps his face moving, so you never see a frozen frame. Let's show you.</aside>
+</section>
+
+<!-- ============ 06 · live demo ============ -->
+<section class="slide house-up" data-time="180" data-section="">
+  <h2 class="hero words">Live demo</h2>
+  <aside class="notes">Switch to the app. Keep a backup screen recording open in another tab.
+1. Pause before the Trinity test and click Oppenheimer's face.
+2. Ask "Did the test work?" He doesn't know yet.
+3. Ask again in Chinese. Same voice, and the answer comes back in Chinese.
+4. Interrupt him mid-answer. He stops and listens.
+5. Turn on Omniscience and ask again. Now he knows how it ends.
+6. Switch to Rick and Morty and ask Rick something. Point out how fast and loud he talks next to Oppenheimer.
+
+Come back to the deck at about 5:40.</aside>
+</section>
+
+<!-- ============ 06b · two performances ============ -->
+<section class="slide perf-slide" data-steps="2" data-time="20" data-section="One voice model">
+  <h2 class="title words">Same voice model, two performances</h2>
+  <div class="perfs">
+    <div class="perf opp">
+      <p class="label">Oppenheimer</p>
+      <h3>Subtle</h3>
+      <div class="pairs">
+        <p class="tc k">delivery_profile: "subtle"</p><p class="tc v quiet">no tags added</p>
+        <p class="tc k">“Wait. You can see me?”</p><p class="tc v quiet">sent as it is</p>
+      </div>
+    </div>
+    <div class="perf rick">
+      <p class="label">Rick</p>
+      <h3>Expressive</h3>
+      <div class="pairs">
+        <p class="tc k">speech_style: "Fast speech."</p><p class="tc v">&lt;|prosody:speed_fast|&gt;</p>
+        <p class="tc k">“Wait, what?!”</p><p class="tc v">&lt;|emotion:surprise|&gt;</p>
+        <p class="tc k">*burp* in the line</p><p class="tc v">&lt;|sfx:burping|&gt;</p>
+        <p class="tc k">tts_emotion: "enthusiasm"</p><p class="tc v quiet">fallback, if no cue</p>
+      </div>
+    </div>
+  </div>
+  <p class="intertitle key perf-close">A few settings per character decide how they sound.</p>
+  <aside class="notes">Same voice model, two very different performances.
+[click] Oppenheimer is subtle. We add no tags, and his cloned voice carries it.
+[click] Rick is expressive. Fast speech becomes a speed tag, "Wait, what?!" becomes surprise, and his burp becomes a real burp. Just a few settings per character.</aside>
+</section>
+
+<!-- ============ 05 · credits ============ -->
+<section class="slide credits-slide" data-time="20" data-section="Built on Higgs">
+  <h2 class="title words">Starring three Higgs models</h2>
+  <div class="credits">
+    <div class="credit rise" style="--d:0.5s"><p class="label">The mind &amp; voice</p><p class="name">Higgs Realtime</p><p class="body">Speech to speech · barge-in · any language</p></div>
+    <div class="credit rise" style="--d:0.65s"><p class="label">The delivery</p><p class="name">Higgs TTS 3</p><p class="body">Cloned voice · emotion and prosody tags</p></div>
+    <div class="credit rise" style="--d:0.8s"><p class="label">The face</p><p class="name">Higgs Avatar</p><p class="body">Talking head · look at the pause · fMP4 stream</p></div>
+    <div class="credit censor rise" style="--d:1.05s"><p class="label">And as the censor</p><p class="name">Higgs Realtime</p><p class="body">Spoiler guard · the only model that sees the future</p></div>
+  </div>
+  <aside class="notes">It all runs on Higgs. Realtime is the mind and the voice. TTS 3 clones the voices and adds emotion. Avatar turns one still into a talking face. And Realtime also plays the censor, the only model that sees the future.</aside>
+</section>
+
+<!-- ============ 08 · pipeline ============ -->
+<section class="slide pipe-slide" data-steps="2" data-time="30" data-section="Under the hood">
+  <h2 class="title words">From video.mp4 to a reply</h2>
+  <p class="label col-head left">Prepared once per film</p>
+  <p class="label col-head right">Every time you pause</p>
+  <svg class="wires" viewBox="0 0 1920 1080" aria-hidden="true"><path class="wire " style="--k:1" pathLength="1" d="M700 355 C 940 355, 940 436, 1180 436"/><path class="wire " style="--k:2" pathLength="1" d="M700 491 C 940 491, 940 540, 1180 540"/><path class="wire " style="--k:2" pathLength="1" d="M700 627 C 940 627, 940 540, 1180 540"/><path class="wire future" style="--k:4" pathLength="1" d="M700 627 C 940 627, 940 748, 1180 748"/><path class="wire " style="--k:5" pathLength="1" d="M700 763 C 940 763, 940 852, 1180 852"/>
+    <text class="wire-tag" x="930" y="782">future scenes</text>
+  </svg>
+  <div class="prep">
+    <div class="pbox" style="--k:0"><p class="tc src">video.mp4 · frames</p><h3>Faces</h3><p class="tc out">looks.json</p></div>
+    <div class="pbox" style="--k:1"><p class="tc src">subtitles.srt + screenplay.pdf</p><h3>Scenes &amp; speakers</h3><p class="tc out">scenes.json</p></div>
+    <div class="pbox" style="--k:2"><p class="tc src">scenes, one at a time</p><h3>Summaries &amp; notes</h3><p class="tc out">states · notes</p></div>
+    <div class="pbox" style="--k:3"><p class="tc src">video.mp4 · audio</p><h3>Voices</h3><p class="tc out">voice_id</p></div>
+  </div>
+  <div class="live-steps">
+    <div class="lstep" style="--k:0"><span class="tc">1</span><p>Pause at <span class="tc">t</span></p></div>
+    <div class="lstep" style="--k:1"><span class="tc">2</span><p>Find the faces</p></div>
+    <div class="lstep key" style="--k:2"><span class="tc">3</span><p>Filter to <span class="tc">t</span></p><em>only the past</em></div>
+    <div class="lstep" style="--k:3"><span class="tc">4</span><p>Realtime writes the reply</p></div>
+    <div class="lstep key" style="--k:4"><span class="tc">5</span><p>Guard checks each line</p><em>sees the future</em></div>
+    <div class="lstep end" style="--k:5"><span class="tc">6</span><p>Speak, in voice or face</p></div>
+  </div>
+  <aside class="notes">Here's how a film becomes a conversation.
+[click] Once per film: faces from the frames, scenes and speakers from the screenplay and subtitles, summaries written one scene at a time so nothing leaks forward, and a cloned voice.
+[click] Then every pause: find the faces, filter to time t, let Realtime write, and the guard, the only step that sees future scenes, checks each line before he speaks.</aside>
+</section>
+
+<!-- ============ 09 · latency ============ -->
+<section class="slide" data-time="15" data-section="Under the hood">
+  <h2 class="title words">Built on a measured latency budget</h2>
+  <div>
+    <div class="wf">
+      <div class="wf-row"><p class="body"><b>Realtime</b> · first text token</p><div class="bar" style="--v:0.35;--d:0.5s"><i></i><span class="tc">0.35 s</span></div></div>
+      <div class="wf-row"><p class="body"><b>Realtime</b> · first audio, cloned voice</p><div class="bar" style="--v:0.41;--d:0.6s"><i></i><span class="tc">0.4 s</span></div></div>
+      <div class="wf-row"><p class="body"><b>Voice held</b> · until sentence 1 passes</p><div class="bar mid" style="--v:1.2;--d:0.7s"><i></i><span class="tc">≤ 1.2 s</span></div></div>
+      <div class="wf-row"><p class="body"><b>Faces</b> · recognised in the frame</p><div class="bar mid" style="--v:1.5;--d:0.8s"><i></i><span class="tc">~1.5 s</span></div></div>
+      <div class="wf-row"><p class="body"><b>Avatar</b> · lip-sync, short reply</p><div class="bar slow" style="--v:3.1;--d:0.9s"><i></i><span class="tc">3.1 s</span></div></div>
+    </div>
+    <div class="ticks"><span></span><div class="scale"><span style="left:0%">0</span><span style="left:20%">2 s</span><span style="left:40%">4 s</span><span style="left:60%">6 s</span><span style="left:80%">8 s</span><span style="left:100%">10 s</span></div></div>
+  </div>
+  <p class="intertitle key rise" style="--d:1.6s">Voice mode is the default; the lip-synced face is opt-in.</p>
+  <aside class="notes">We measured every call. Realtime's first audio arrives in about 0.4 seconds. The lip-synced face needs about three. So voice comes first, and the face is opt-in.</aside>
+</section>
+
+<!-- ============ 10 · tradeoff ============ -->
+<section class="slide trade-slide" data-time="25" data-section="Under the hood">
+  <h2 class="title words">Emotion tags cost about two seconds</h2>
+  <div class="paths rise" style="--d:0.3s">
+    <div class="path rt"><h3><i></i>Realtime audio</h3><p class="body">The default. Realtime speaks the reply, and its audio drives the face. Emotion comes only from how the persona is written.</p></div>
+    <div class="path tts"><h3><i></i>TTS 3 with tags</h3><p class="body">Opt-in per film. Realtime writes the text, and Avatar voices it through TTS 3 with allowlisted emotion, style and prosody tags for each character and scene.</p></div>
+  </div>
+  <div>
+    <div class="pair-rows">
+      <div class="pair-row"><p class="body"><b>Short reply</b> · 3.8 s</p><div class="duo"><div class="bar rt" style="--v:3.1;--d:0.6s"><i></i><span class="tc">3.1 s</span></div><div class="bar tts" style="--v:4.6;--d:0.7s"><i></i><span class="tc">4.6 s<span class="delta">+1.5 s</span></span></div></div></div>
+      <div class="pair-row"><p class="body"><b>Medium reply</b> · 9.8 s</p><div class="duo"><div class="bar rt" style="--v:4.1;--d:0.8s"><i></i><span class="tc">4.1 s</span></div><div class="bar tts" style="--v:5.6;--d:0.9s"><i></i><span class="tc">5.6 s<span class="delta">+1.5 s</span></span></div></div></div>
+      <div class="pair-row"><p class="body"><b>Long reply</b> · 19.6 s</p><div class="duo"><div class="bar rt" style="--v:5.6;--d:1s"><i></i><span class="tc">5.6 s</span></div><div class="bar tts" style="--v:7.9;--d:1.1s"><i></i><span class="tc">7.9 s<span class="delta">+2.3 s</span></span></div></div></div>
+    </div>
+    <div class="ticks pair-ticks"><span class="small">Time to smooth lip-sync</span><div class="scale"><span style="left:0%">0</span><span style="left:20%">2 s</span><span style="left:40%">4 s</span><span style="left:60%">6 s</span><span style="left:80%">8 s</span><span style="left:100%">10 s</span></div></div>
+  </div>
+  <aside class="notes">Emotion has a price, too. Realtime audio is the fastest path, but its emotion comes only from how the persona is written. TTS 3 takes explicit emotion and prosody tags, and that costs one and a half to two seconds more. So each film chooses.</aside>
+</section>
+
+<!-- ============ 12 · limits ============ -->
+<section class="slide limits-slide" data-time="25" data-section="Where it stands">
+  <h2 class="title words">Limits</h2>
+  <div class="limits">
+    <div class="item rise" style="--d:0.35s"><p class="tc">1</p><div><h3>Lip-sync takes time, and emotion takes more</h3><p class="body">The face starts 3–6 s after the reply is written, and TTS 3 emotion tags add 1.5–2.3 s. Realtime audio is the fast fallback, but it can’t take emotion tags.</p></div></div>
+    <div class="item rise" style="--d:0.45s"><p class="tc">2</p><div><h3>Animated faces need hand setup</h3><p class="body">Face detection is trained on real people. Each animated character needs its own profile, and its avatar looks less convincing.</p></div></div>
+    <div class="item rise" style="--d:0.55s"><p class="tc">3</p><div><h3>The guard is itself an LLM</h3><p class="body">The time filter is tested, but how often the guard misses a spoiler or blocks a harmless line hasn’t been measured.</p></div></div>
+    <div class="item rise" style="--d:0.65s"><p class="tc">4</p><div><h3>Every new film takes setup</h3><p class="body">Subtitles, ideally a screenplay, LLM summaries that can be wrong, and some hand fixes to who said what.</p></div></div>
+  </div>
+  <aside class="notes">What's still hard. Lip-sync takes seconds, and longer with emotion tags. Animated faces need hand setup, because face models are trained on real people. The guard is an LLM too, and we haven't measured how often it misses. And every new film takes setup.</aside>
+</section>
+
+<!-- ============ 13 · close ============ -->
+<section class="slide curtained closing" data-time="5" data-section="">
+  <div class="house-spot"></div>
+  <div class="content">
+    <h2 class="hero words" style="--d:0.6s">Pause.<br>Click. Talk.</h2>
+    <p class="names spaced rise" style="--d:1.2s"><span>Haochen Ding</span><span>Rolland He</span><span>Yinuo Yang</span></p>
+  </div>
+  <div class="curtain l"></div>
+  <div class="curtain r"></div>
+  <div class="valance"></div>
+  <aside class="notes">Talk to Character, through the fourth wall. Thank you.</aside>
+</section>
+
+<div class="grain"></div>
+<div id="reel"></div>
+</div>
+
+<div id="notes"><div class="clock"></div><div class="text"></div></div>
+
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const reel = document.getElementById('reel');
+  const notes = document.getElementById('notes');
+  const clock = notes.querySelector('.clock');
+  const noteText = notes.querySelector('.text');
+  const slides = [...stage.querySelectorAll(':scope > .slide')];
+  const pad = n => String(n).padStart(2, '0');
+  const mmss = s => `${pad(Math.floor(s / 60))}:${pad(Math.floor(s % 60))}`;
+  let i = 0, shown = 0;
+
+  // headings rise word by word; [.split] lines light word by word
+  document.querySelectorAll('.words, .split').forEach(el => {
+    let n = 0;
+    [...el.childNodes].forEach(node => {
+      if (node.nodeType !== 3) return;
+      const frag = document.createDocumentFragment();
+      node.textContent.split(/(\s+)/).forEach(part => {
+        if (!part) return;
+        if (/^\s+$/.test(part)) { frag.append(part); return; }
+        const s = document.createElement('span');
+        s.textContent = part;
+        s.style.setProperty('--i', n++);
+        if (el.classList.contains('split')) s.className = 'w';
+        frag.append(s);
+      });
+      node.replaceWith(frag);
+    });
+  });
+
+  slides.forEach((s, n) => {
+    const f = document.createElement('div');
+    f.className = 'footer';
+    f.innerHTML = `<span></span><span class="tc">${pad(n + 1)} / ${pad(slides.length)}</span>`;
+    s.append(f);
+    if (s.dataset.section) {
+      const h = document.createElement('p');
+      h.className = 'section';
+      h.textContent = s.dataset.section;
+      s.prepend(h);
+    }
+  });
+
+  // ---- scripted moments ----
+  const timers = [];
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+  function typeLine(el, done, ms) {
+    const text = el.dataset.text;
+    let k = 0;
+    el.textContent = '';
+    el.classList.remove('done');
+    const tick = () => {
+      el.textContent = text.slice(0, ++k);
+      if (k < text.length) later(tick, ms ? ms : 9 + Math.random() * 10);
+      else { el.classList.add('done'); done && done(); }
+    };
+    later(tick, 200);
+  }
+  let raf = 0;
+  function sweep(s, instant) {
+    const ph = s.querySelector('.playhead');
+    if (!ph) return;
+    const label = ph.querySelector('.tc');
+    const w = s.querySelector('.blk').offsetWidth;
+    const target = 4 * (w + 8) + w * 0.64 - 2;
+    const end = 47 * 60 + 12;
+    const put = e => { ph.style.left = (target * e) + 'px'; const t = Math.round(end * e); label.textContent = `00:${pad(Math.floor(t / 60))}:${pad(t % 60)}`; };
+    cancelAnimationFrame(raf);
+    if (instant) { put(1); return; }
+    put(0);
+    const t0 = performance.now() + 900, dur = 2600;
+    const frame = now => {
+      const p = Math.max(0, Math.min(1, (now - t0) / dur));
+      put(1 - Math.pow(1 - p, 4));
+      if (p < 1) raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+  }
+  // the three-layer slide shows one layer's pane at a time
+  function layerFor(n) { return n >= 4 ? 3 : n >= 2 ? 2 : 1; }
+  function showLayer(s, n) {
+    const L = layerFor(n);
+    s.querySelectorAll('.pane').forEach((p, k) => p.classList.toggle('on', k + 1 === L));
+    s.querySelectorAll('.rail .layer').forEach((r, k) => r.classList.toggle('on', k + 1 === L));
+  }
+  // cover: paint the paused film, then cut it into shards around the point he pushes through
+  (function buildCover() {
+    const cover = document.getElementById('cover');
+    if (!cover) return;
+    const scene = document.getElementById('cover-scene').innerHTML.trim();
+    const sceneUrl = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(scene)}")`;
+    build(sceneUrl, 360, 300);
+  })();
+
+  function build(url, cx, cy) {
+    const cover = document.getElementById('cover');
+    cover.querySelector('.screen-img').style.backgroundImage = url;
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const n = 13, inner = [], mid = [], outer = [];
+    for (let k = 0; k < n; k++) {
+      const ang = (k / n) * Math.PI * 2 + rnd(-0.18, 0.18);
+      const pt = r => [cx + Math.cos(ang) * r, cy + Math.sin(ang) * r];
+      inner.push(pt(rnd(60, 110)));
+      mid.push(pt(rnd(240, 330)));
+      outer.push(pt(1300));
+    }
+    const shards = cover.querySelector('.shards'), crack = cover.querySelector('.crack');
+    const add = poly => {
+      const c = poly.reduce((a, p) => [a[0] + p[0] / poly.length, a[1] + p[1] / poly.length], [0, 0]);
+      const d = Math.hypot(c[0] - cx, c[1] - cy) || 1, ux = (c[0] - cx) / d, uy = (c[1] - cy) / d;
+      const dist = rnd(260, 620);
+      const el = document.createElement('div');
+      el.className = 'shard';
+      el.style.backgroundImage = url;
+      el.style.clipPath = `polygon(${poly.map(p => `${p[0].toFixed(1)}px ${p[1].toFixed(1)}px`).join(',')})`;
+      el.style.transformOrigin = `${c[0].toFixed(1)}px ${c[1].toFixed(1)}px`;
+      el.style.setProperty('--b', rnd(0.72, 1.12).toFixed(2));
+      el.style.setProperty('--fly', `translate3d(${(ux * dist).toFixed(0)}px, ${(uy * dist + rnd(160, 380)).toFixed(0)}px, ${rnd(180, 520).toFixed(0)}px) rotateX(${rnd(-80, 80).toFixed(0)}deg) rotateY(${rnd(-80, 80).toFixed(0)}deg) rotateZ(${rnd(-60, 60).toFixed(0)}deg)`);
+      shards.append(el);
+    };
+    let lines = '', k = 0;
+    const seg = (a, b) => { lines += `<path pathLength="1" style="--k:${k++}" d="M${a[0].toFixed(1)} ${a[1].toFixed(1)} L${b[0].toFixed(1)} ${b[1].toFixed(1)}"/>`; };
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      add([[cx, cy], inner[i], inner[j]]);
+      add([inner[i], mid[i], mid[j], inner[j]]);
+      add([mid[i], outer[i], outer[j], mid[j]]);
+      seg([cx, cy], inner[i]); seg(inner[i], mid[i]); seg(inner[i], inner[j]);
+      seg(mid[i], [cx + (outer[i][0] - cx) * 0.6, cy + (outer[i][1] - cy) * 0.6]);
+      if (i % 2 === 0) seg(mid[i], mid[j]);
+    }
+    crack.innerHTML = lines;
+  }
+
+  let clockTimer = 0;
+  function setClock(s, sec, label) {
+    const el = s.querySelector('.clock'); if (!el) return;
+    el.textContent = `00:${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
+    s.querySelector('.cover-lived .lived').style.setProperty('--at', (sec / 10800 * 100).toFixed(3) + '%');
+    s.querySelector('.pstate').textContent = label || '';
+  }
+  function startClock(s) {
+    clearInterval(clockTimer);
+    let sec = 47 * 60;
+    setClock(s, sec);
+    clockTimer = setInterval(() => setClock(s, ++sec), 1000);
+  }
+  // the moment the film was paused; later slides quote it
+  let pausedAt = 47 * 60 + 12;
+  function showPause() {
+    const mm = pad(Math.floor(pausedAt / 60)), ss = pad(pausedAt % 60);
+    document.querySelectorAll('.ptime').forEach(el => { el.textContent = `${mm}:${ss}`; });
+    document.querySelectorAll('.ptime-full').forEach(el => { el.textContent = `00:${mm}:${ss}`; });
+  }
+  function stopClock(s, paused) {
+    clearInterval(clockTimer);
+    if (!paused) return;
+    const el = s.querySelector('.clock');
+    const m = el && el.textContent.match(/(\d+):(\d+)$/);
+    if (m && s.classList.contains('active') && !s.classList.contains('instant')) pausedAt = +m[1] * 60 + +m[2];
+    setClock(s, pausedAt, 'Paused');
+    showPause();
+  }
+
+  const onStep = {
+    cover(s, n) {
+      if (n !== 1) return;
+      stopClock(s, true);
+      // his line, in the cloned voice (Higgs TTS 3), plays as the subtitle types; silent if the file is missing
+      later(() => {
+        const voice = s.querySelector('.voice');
+        if (voice) { voice.currentTime = 0; voice.play().catch(() => {}); }
+        typeLine(s.querySelector('.say .typed'), null, 32);
+      }, 2800);
+    },
+    hook(s, n) {
+      if (n !== 1) return;
+      const side = s.querySelector('.bot');
+      typeLine(side.querySelector('.typed'), () => later(() => side.classList.add('spoiled'), 150));
+    },
+    spoil(s, n) { showLayer(s, n); }
+  };
+  function finish(s) {
+    if (s.id === 'cover') stopClock(s, true);
+    s.querySelectorAll('.typed').forEach(t => { t.textContent = t.dataset.text; t.classList.add('done'); });
+    s.querySelectorAll('.bot').forEach(b => b.classList.add('spoiled'));
+  }
+  function reset(s) {
+    s.querySelectorAll('audio').forEach(a => { a.pause(); a.currentTime = 0; });
+    for (let k = 1; k <= 9; k++) s.classList.remove('s' + k);
+    s.querySelectorAll('.typed').forEach(t => { t.textContent = ''; t.classList.remove('done'); });
+    s.querySelectorAll('.spoiled').forEach(b => b.classList.remove('spoiled'));
+  }
+
+  // ---- navigation ----
+  function go(n, full) {
+    timers.splice(0).forEach(clearTimeout);
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => { if (k !== i) { s.classList.remove('active'); reset(s); } });
+    const s = slides[i];
+    reset(s);
+    s.classList.remove('active');
+    void s.offsetWidth;
+    const steps = +s.dataset.steps || 0;
+    if (full) {
+      s.classList.add('instant');
+      for (let k = 1; k <= steps; k++) s.classList.add('s' + k);
+      finish(s);
+      s.classList.add('active');
+      void s.offsetWidth;
+      requestAnimationFrame(() => s.classList.remove('instant'));
+      shown = steps;
+    } else {
+      s.classList.add('active');
+      shown = 0;
+    }
+    if (s.id === 'spoil') showLayer(s, shown);
+    if (s.id === 'cover' && !full) startClock(s); else clearInterval(clockTimer);
+    sweep(s, full);
+    reel.style.width = ((i + 1) / slides.length * 100) + '%';
+    history.replaceState(null, '', location.search + '#' + (i + 1));
+    if (i > 0 && !startedAt) startedAt = Date.now();
+    renderNotes();
+  }
+  function next() {
+    const s = slides[i];
+    if (shown < (+s.dataset.steps || 0)) {
+      shown++;
+      s.classList.add('s' + shown);
+      const hook = onStep[s.id];
+      hook && hook(s, shown);
+    } else if (i < slides.length - 1) go(i + 1);
+  }
+  const prev = () => { if (i > 0) go(i - 1, true); };
+
+  // ---- presenter notes + timer ----
+  let startedAt = 0;
+  const planned = slides.map(s => +s.dataset.time || 0);
+  const plannedBefore = k => planned.slice(0, k).reduce((a, b) => a + b, 0);
+  const total = plannedBefore(slides.length);
+  function renderNotes() {
+    const s = slides[i];
+    const elapsed = startedAt ? (Date.now() - startedAt) / 1000 : 0;
+    const due = plannedBefore(i + 1);
+    clock.innerHTML =
+      `<span>Slide <b>${i + 1}</b> / ${slides.length}</span>` +
+      `<span>This slide <b>${mmss(planned[i])}</b></span>` +
+      `<span>Elapsed <b class="${elapsed > due + 15 ? 'late' : ''}">${mmss(elapsed)}</b></span>` +
+      `<span>Plan: finish this slide by <b>${mmss(due)}</b> of ${mmss(total)}</span>` +
+      `<span>T resets the timer</span>`;
+    const aside = s.querySelector('.notes');
+    noteText.textContent = aside ? aside.textContent.trim() : '';
+  }
+  setInterval(() => { if (document.body.classList.contains('show-notes')) renderNotes(); }, 1000);
+
+  function fit() {
+    const w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
+    const k = Math.min(w / 1920, h / 1080);
+    stage.style.transform = `translate(${(w - 1920 * k) / 2}px, ${(h - 1080 * k) / 2}px) scale(${k})`;
+  }
+  addEventListener('resize', fit);
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(k)) { e.preventDefault(); prev(); }
+    else if (k === 'Home') go(0);
+    else if (k === 'End') go(slides.length - 1, true);
+    else if (k === 'n' || k === 'N') { document.body.classList.toggle('show-notes'); renderNotes(); }
+    else if (k === 't' || k === 'T') { startedAt = Date.now(); renderNotes(); }
+    else if (k === 'f' || k === 'F') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  });
+  addEventListener('click', e => {
+    if (e.target.closest('#notes')) return;
+    e.clientX < innerWidth / 5 ? prev() : next();
+  });
+
+  fit();
+  // ?built opens the slide with every build step already shown
+  go((parseInt(location.hash.slice(1), 10) || 1) - 1, new URLSearchParams(location.search).has('built'));
+})();
+</script>
+</body>
+</html>

@@ -6,6 +6,8 @@ export interface DemoSegment {
   emoji: string;
   start: number; // seconds in this (demo) video
   duration: number;
+  /** where the chapter button jumps to (demo seconds); default: just after the segment starts */
+  jump?: number | null;
 }
 
 export interface Movie {
