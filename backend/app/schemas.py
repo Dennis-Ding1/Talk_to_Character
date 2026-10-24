@@ -23,6 +23,7 @@ class Character(BaseModel):
     bio: str = ""
     personality: str = ""
     speech_style: str = ""  # catchphrases, tone, dialect
+    core: str = ""  # deep drives and beliefs that hold across the whole story (must not spoil anything)
     relationships: dict[str, str] = {}  # other character id -> description (baseline, t=0)
     # Assets
     face_image: str | None = None  # path relative to characters/<id>/
@@ -32,11 +33,19 @@ class Character(BaseModel):
     voice_id: str | None = None  # Boson voice id after registration
 
 
+class CharacterAtTime(Character):
+    """A character for the pause picker, with their best-looking face as they appear right now."""
+
+    look_id: str | None = None
+    look_url: str | None = None
+
+
 class SubtitleLine(BaseModel):
     start: float
     end: float
     text: str
     speaker: str | None = None  # character id if known
+    vo: bool = False  # voice-over / off-screen narration (the speaker isn't in this scene)
 
 
 class Scene(BaseModel):
@@ -76,6 +85,8 @@ class CharacterState(BaseModel):
 # ---------- API ----------
 
 OutputMode = Literal["voice_first", "lip_sync"]
+# present: spoiler-safe, as of the pause point. omniscient: knows the whole story ("what if" mode).
+KnowledgeMode = Literal["present", "omniscient"]
 
 
 class SessionRequest(BaseModel):
@@ -84,6 +95,7 @@ class SessionRequest(BaseModel):
     t: float = Field(ge=0, description="playback position in seconds")
     user_lang: str | None = None  # hint only; Higgs Realtime auto-detects
     mode: OutputMode = "voice_first"
+    knowledge: KnowledgeMode = "present"
 
 
 class SessionResponse(BaseModel):
@@ -92,12 +104,17 @@ class SessionResponse(BaseModel):
     session: dict  # payload for the client's first `session.update`
     character: Character
     history: list[dict] = []  # prior turns to replay via conversation.item.create
+    turn_note: str = ""  # send as a user text item after each user turn (keeps replies long + on-rules)
+    as_of_year: float | None = None  # story year the character speaks from
+    anchored: bool = False  # True: paused in a flash-forward; character is as of the viewer's progress
+    knowledge: KnowledgeMode = "present"
 
 
 class ToolCall(BaseModel):
     movie_id: str
     character_id: str
     t: float
+    knowledge: KnowledgeMode = "present"
     arguments: dict = {}
 
 

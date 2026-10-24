@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.context.knowledge import MovieNotFound, list_movies, load_movie
-from app.schemas import Character, Movie
+from app.schemas import Character, CharacterAtTime, Movie
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
@@ -19,11 +19,19 @@ def movies():
     return list_movies()
 
 
-@router.get("/{movie_id}/characters", response_model=list[Character])
+@router.get("/{movie_id}/characters", response_model=list[CharacterAtTime])
 def characters(movie_id: str, t: float | None = None):
-    """All characters, or (with ?t=) the ones on screen around t for the pause picker."""
+    """All characters, or (with ?t=) the ones around t for the pause picker, each with their best
+    face from this scene before t (look_url) when the film has a face index."""
     kb = _kb(movie_id)
-    return kb.characters_at(t) if t is not None else list(kb.characters.values())
+    if t is None:
+        return [CharacterAtTime(**c.model_dump()) for c in kb.characters.values()]
+    out = []
+    for c in kb.characters_at(t):
+        lk = kb.best_look(c.id, t)
+        out.append(CharacterAtTime(**c.model_dump(), look_id=lk["id"] if lk else None,
+                                   look_url=f"/api/movies/{movie_id}/faces/{lk['id']}.jpg" if lk else None))
+    return out
 
 
 @router.get("/{movie_id}/video")
@@ -60,6 +68,33 @@ def faces(movie_id: str, t: float):
     ]
 
 
+@router.get("/{movie_id}/frame_faces")
+def frame_faces(movie_id: str, t: float):
+    """Faces in the exact paused frame, recognised, for click-a-face-to-talk.
+
+    box is [x, y, w, h] normalised to the video frame. For recognised faces, `character` carries the
+    character plus their best photo at this moment (look_url) for the avatar; face_url is the crop of
+    this very face (fallback)."""
+    from app.faces import recognise_frame
+
+    kb = _kb(movie_id)
+    video_path = kb.folder / kb.movie.video
+    if not video_path.exists():
+        return []
+    faces = recognise_frame(video_path, t, kb.folder / "cache" / "face_cores.npz", kb.folder / "cache" / "faces")
+    out = []
+    for f in faces:
+        c = kb.characters.get(f["character_id"] or "")
+        character = None
+        if c:
+            lk = kb.best_look(c.id, t)
+            character = CharacterAtTime(
+                **c.model_dump(), look_id=lk["id"] if lk else f["face_id"],
+                look_url=f"/api/movies/{movie_id}/faces/{lk['id'] if lk else f['face_id']}.jpg")
+        out.append({**f, "face_url": f"/api/movies/{movie_id}/faces/{f['face_id']}.jpg", "character": character})
+    return out
+
+
 @router.get("/{movie_id}/faces/{face_id}.jpg")
 def face_crop(movie_id: str, face_id: str):
     kb = _kb(movie_id)
@@ -72,8 +107,11 @@ def face_crop(movie_id: str, face_id: str):
 def face_crop_path(kb, face_id: str):
     if not face_id.replace("_", "").isalnum():
         return None
-    path = kb.folder / "cache" / "faces" / f"{face_id}.jpg"
-    return path if path.exists() else None
+    for sub in ("looks", "faces"):  # face-index looks, or on-the-fly crops
+        path = kb.folder / "cache" / sub / f"{face_id}.jpg"
+        if path.exists():
+            return path
+    return None
 
 
 @router.get("/{movie_id}/characters/{character_id}/face")

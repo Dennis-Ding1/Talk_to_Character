@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { CharacterPicker } from "./components/CharacterPicker";
 import { ChatPanel } from "./components/ChatPanel";
+import { FaceOverlay } from "./components/FaceOverlay";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { api } from "./lib/api";
-import type { Character, FaceCrop, Movie, OutputMode } from "./types";
+import type { Character, FaceCrop, FrameFace, KnowledgeMode, Movie, OutputMode } from "./types";
 
 export default function App() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -11,9 +12,11 @@ export default function App() {
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [onScreen, setOnScreen] = useState<Character[]>([]);
   const [talkingTo, setTalkingTo] = useState<Character | null>(null);
-  const [faces, setFaces] = useState<FaceCrop[] | null>(null);
   const [face, setFace] = useState<FaceCrop | null>(null);
+  const [frameFaces, setFrameFaces] = useState<FrameFace[] | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
   const [mode, setMode] = useState<OutputMode>("voice_first");
+  const [knowledge, setKnowledge] = useState<KnowledgeMode>("present");
   const [err, setErr] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -35,14 +38,24 @@ export default function App() {
     const t = v.currentTime;
     setPausedAt(t);
     setTalkingTo(null);
-    setFaces(null);
-    // faces take a few seconds (frame sampling + detection); don't block the picker on them
+    setFrameFaces(null);
+    setHovered(null);
+    // recognising the exact frame takes ~1.5 s; the character cards (precomputed) show instantly
     api
-      .faces(movie.id, t)
-      .then(setFaces)
-      .catch(() => setFaces([]));
+      .frameFaces(movie.id, t)
+      .then((fs) => setFrameFaces((cur) => (videoRef.current?.currentTime === t ? fs : cur)))
+      .catch(() => setFrameFaces([]));
     setOnScreen(await api.charactersAt(movie.id, t));
   };
+
+  const pick = (c: Character, f: FaceCrop | null) => {
+    setFace(f);
+    setTalkingTo(c);
+  };
+
+  /** Faces recognised in the frame come first in the cards, then everyone else in the scene. */
+  const recognised = (frameFaces ?? []).flatMap((f) => (f.character ? [f.character] : []));
+  const cards = [...recognised, ...onScreen.filter((c) => !recognised.some((r) => r.id === c.id))];
 
   const handlePlay = () => {
     setPausedAt(null);
@@ -60,8 +73,15 @@ export default function App() {
             </option>
           ))}
         </select>
+        <label title="Present: no spoilers, the character only knows the story up to the pause. Omniscient: they know how it all ends, ask what-if questions.">
+          Knowledge{" "}
+          <select value={knowledge} onChange={(e) => setKnowledge(e.target.value as KnowledgeMode)}>
+            <option value="present">Present (no spoilers)</option>
+            <option value="omniscient">Omniscient (what if…?)</option>
+          </select>
+        </label>
         <label>
-          Mode{" "}
+          Avatar{" "}
           <select value={mode} onChange={(e) => setMode(e.target.value as OutputMode)}>
             <option value="voice_first">Voice first (fast)</option>
             <option value="lip_sync">Lip-sync avatar (slower)</option>
@@ -82,26 +102,37 @@ export default function App() {
             </button>
           )}
           {movie && pausedAt !== null && !talkingTo && (
-            <CharacterPicker
-              movieId={movie.id}
-              characters={onScreen}
-              faces={faces}
-              onPick={(c, f) => {
-                setFace(f);
-                setTalkingTo(c);
-              }}
-              onClose={() => setPausedAt(null)}
-            />
+            <>
+              <FaceOverlay
+                videoRef={videoRef}
+                faces={frameFaces}
+                hoveredId={hovered}
+                onHover={setHovered}
+                onPick={(c) =>
+                  pick(c, c.look_id && c.look_url ? { id: c.look_id, url: c.look_url, frame_t: pausedAt, score: 1 } : null)
+                }
+              />
+              <CharacterPicker
+                movieId={movie.id}
+                t={pausedAt}
+                characters={cards}
+                hoveredId={hovered}
+                onHover={setHovered}
+                onPick={pick}
+                onClose={() => setPausedAt(null)}
+              />
+            </>
           )}
         </div>
         {movie && talkingTo && pausedAt !== null && (
           <ChatPanel
-            key={`${talkingTo.id}@${pausedAt}`}
+            key={`${talkingTo.id}@${pausedAt}/${knowledge}`}
             movieId={movie.id}
             character={talkingTo}
             face={face}
             t={pausedAt}
             mode={mode}
+            knowledge={knowledge}
             onClose={() => setTalkingTo(null)}
           />
         )}

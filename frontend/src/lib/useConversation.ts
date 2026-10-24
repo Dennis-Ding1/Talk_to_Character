@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatMessage, OutputMode, SessionResponse } from "../types";
+import type { ChatMessage, KnowledgeMode, OutputMode, SessionResponse } from "../types";
 import { api } from "./api";
 import { Mic } from "./audio/mic";
 import { PcmPlayer } from "./audio/pcm-player";
@@ -12,12 +12,15 @@ interface Args {
   characterId: string;
   t: number;
   mode: OutputMode;
-  /** lip_sync mode: called with each reply text to render as a talking-avatar video. */
+  knowledge: KnowledgeMode;
+  /** lip_sync mode: called with each finished reply, to render as a talking-avatar clip. */
   onAvatar?: (drive: { text?: string; audio_b64?: string }) => void;
+  /** the user took the turn: stop anything the avatar is still saying */
+  onInterrupt?: () => void;
 }
 
 /** One conversation with one character, opened at playback time t. */
-export function useConversation({ movieId, characterId, t, mode, onAvatar }: Args) {
+export function useConversation({ movieId, characterId, t, mode, knowledge, onAvatar, onInterrupt }: Args) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +30,11 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
   const mic = useRef<Mic>();
   const player = useRef<PcmPlayer>();
   const responding = useRef(false);
+  const transcriptWaiter = useRef<((text: string) => void) | null>(null);
   const onAvatarRef = useRef(onAvatar);
   onAvatarRef.current = onAvatar;
+  const onInterruptRef = useRef(onInterrupt);
+  onInterruptRef.current = onInterrupt;
 
   const upsert = useCallback((id: string, role: ChatMessage["role"], text: string, append = false) => {
     setMessages((ms) => {
@@ -47,7 +53,7 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
     player.current = new PcmPlayer();
 
     (async () => {
-      const s = await api.session(movieId, characterId, t, mode);
+      const s = await api.session(movieId, characterId, t, mode, knowledge);
       if (cancelled) return;
       setSession(s);
       if (!s.client_secret) {
@@ -57,8 +63,10 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
       }
       const session = new RealtimeSession({
         onUserTranscript: (id, text) => {
+          transcriptWaiter.current?.(text);
+          transcriptWaiter.current = null;
           upsert(id, "user", text);
-          void api.saveTurn(movieId, characterId, "user", text, t);
+          void api.saveTurn(movieId, characterId, knowledge, "user", text, t);
         },
         onAudioDelta: (b64) => {
           setStatus("speaking");
@@ -67,7 +75,7 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
         onAssistantDelta: (id, d) => upsert(id, "assistant", d, true),
         onAssistantDone: (id, text) => {
           upsert(id, "assistant", text);
-          void api.saveTurn(movieId, characterId, "assistant", text, t);
+          void api.saveTurn(movieId, characterId, knowledge, "assistant", text, t);
           if (mode === "lip_sync") onAvatarRef.current?.({ text });
         },
         onResponseDone: () => {
@@ -77,7 +85,7 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
         },
         onToolCall: async (name, args) => {
           responding.current = true; // a follow-up response is created after the tool result
-          return (await api.tool(name, movieId, characterId, t, args)).result;
+          return (await api.tool(name, movieId, characterId, t, knowledge, args)).result;
         },
         onError: (e) => {
           console.error("realtime error", e);
@@ -85,6 +93,7 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
         },
         onClose: () => setStatus("idle"),
       });
+      session.turnNote = s.turn_note;
       await session.connect(s.realtime_url, s.client_secret, s.session, s.history);
       if (cancelled) return session.close();
       rt.current = session;
@@ -103,11 +112,27 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
       rt.current?.close();
       rt.current = undefined;
     };
-  }, [movieId, characterId, t, mode, upsert]);
+  }, [movieId, characterId, t, mode, knowledge, upsert]);
+
+  /** Context attached to this one question (backend: persona.question_notes): the 2 most relevant
+   *  memories (same spoiler filter as the prompt) and "you've never met X" for people named in the
+   *  question whom the character hasn't met yet. */
+  const recallNotes = useCallback(
+    async (question: string): Promise<string[]> => {
+      if (!question.trim()) return [];
+      try {
+        return (await api.questionNotes(movieId, characterId, t, knowledge, question)).notes;
+      } catch {
+        return [];
+      }
+    },
+    [movieId, characterId, t, knowledge],
+  );
 
   /** Cut the character off if they're still answering (user is taking the turn). */
   const interrupt = useCallback(() => {
     player.current?.stop();
+    onInterruptRef.current?.();
     if (responding.current) {
       rt.current?.cancel();
       responding.current = false;
@@ -143,21 +168,27 @@ export function useConversation({ movieId, characterId, t, mode, onAvatar }: Arg
       return;
     }
     responding.current = true;
-    rt.current?.commitAudio();
     setStatus("thinking");
-  }, []);
+    // wait (briefly) for the transcript of what was said, to look up the relevant memories
+    const heard = new Promise<string>((resolve) => {
+      transcriptWaiter.current = resolve;
+      window.setTimeout(() => resolve(""), 1500);
+    });
+    rt.current?.commitAudio();
+    void heard.then(recallNotes).then((notes) => rt.current?.respond(notes));
+  }, [recallNotes]);
 
   const sendText = useCallback(
     async (text: string) => {
       await player.current?.resume();
       interrupt();
       upsert(`local-${Date.now()}`, "user", text);
-      void api.saveTurn(movieId, characterId, "user", text, t);
+      void api.saveTurn(movieId, characterId, knowledge, "user", text, t);
       responding.current = true;
-      rt.current?.sendText(text);
       setStatus("thinking");
+      rt.current?.sendText(text, await recallNotes(text));
     },
-    [movieId, characterId, t, upsert, interrupt],
+    [movieId, characterId, t, knowledge, upsert, interrupt, recallNotes],
   );
 
   return { messages, status, error, session, startMic, stopMic, sendText };

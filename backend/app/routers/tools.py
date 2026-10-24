@@ -20,7 +20,8 @@ def run_tool(name: str, call: ToolCall) -> dict:
         raise HTTPException(404, "movie or character not found")
 
     if name == "recall_scene":
-        known = kb.known_scenes(call.character_id, call.t)
+        known = (kb.all_scenes_of(call.character_id) if call.knowledge == "omniscient"
+                 else kb.known_scenes(call.character_id, call.t))
         hits = search_scenes(known, call.arguments.get("query", ""))
         if not hits:
             return {"result": "You don't remember anything like that."}
@@ -39,7 +40,8 @@ def run_tool(name: str, call: ToolCall) -> dict:
         if match is None:
             return {"result": f"You don't know anyone called {other!r}."}
         me = kb.character(call.character_id)
-        st = kb.state_at(call.character_id, call.t)
+        st = (kb.final_state(call.character_id) if call.knowledge == "omniscient"
+              else kb.state_at(call.character_id, call.t))
         rel = (st.relationships.get(match.id) if st else None) or me.relationships.get(match.id)
         return {"result": rel or f"You have no strong feelings about {match.name} yet."}
 

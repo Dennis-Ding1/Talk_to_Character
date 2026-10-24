@@ -8,6 +8,7 @@
 """
 
 import json
+import subprocess
 from pathlib import Path
 
 import typer
@@ -74,14 +75,62 @@ def screenplay(
             typer.echo(f"{s.index:4d} {s.timeline:6s} {s.slug}")
         return
     result = build(folder, cast, movie.subtitles, movie.duration_s, first_person)
-    _save_json(folder / "knowledge" / "scenes.json", [s.model_dump() for s in result])
+    # Keep LLM work from a previous `summarize` run (alignment is deterministic -> same ids/starts),
+    # so re-running after editing story_years.json doesn't cost another LLM pass.
+    out_path = folder / "knowledge" / "scenes.json"
+    seen_faces = _faces_by_scene(folder, result)  # who the face index actually saw in each scene
+    if out_path.exists():
+        old = {s["id"]: s for s in json.loads(out_path.read_text(encoding="utf-8"))}
+        kept = 0
+        for s in result:
+            o = old.get(s.id)
+            if o and abs(o["start"] - s.start) < 0.01 and o.get("summary"):
+                s.summary, s.key_events = o["summary"], o.get("key_events", [])
+                # presence the LLM inferred from the text only counts if the face index confirms it
+                # (or there is no face index): narration over a scene isn't being in it
+                llm = set(o.get("characters_present", [])) - set(s.characters_present)
+                if seen_faces is not None:
+                    llm &= seen_faces.get(s.id, set())
+                llm -= {ln.speaker for ln in s.lines if ln.speaker and ln.vo}
+                s.characters_present = sorted(set(s.characters_present) | llm)
+                kept += 1
+        typer.echo(f"kept summaries for {kept} scenes")
+    if seen_faces is not None:
+        for s in result:
+            # a face that only ever speaks voice-over here is an intercut from another time/place
+            narrators = {ln.speaker for ln in s.lines if ln.speaker and ln.vo} -                         {ln.speaker for ln in s.lines if ln.speaker and not ln.vo}
+            s.characters_present = sorted((set(s.characters_present) | seen_faces.get(s.id, set())) - narrators)
+    _save_json(out_path, [s.model_dump() for s in result])
     attributed = sum(1 for s in result for ln in s.lines if ln.speaker)
     total = sum(len(s.lines) for s in result)
     typer.echo(f"{len(result)} scenes, {total} lines, {attributed / max(total, 1):.0%} with speaker")
 
 
+def _faces_by_scene(folder: Path, scenes: list[Scene]) -> dict[str, set[str]] | None:
+    """Characters whose face the offline face index recognised in each scene (None if no index)."""
+    path = folder / "cache" / "face_index.npz"
+    if not path.exists():
+        return None
+    import numpy as np
+
+    d = np.load(path)
+    if "label" not in d:
+        return None
+    t, lab = d["t"], d["label"]
+    out: dict[str, set[str]] = {}
+    for s in scenes:
+        m = (t >= s.start) & (t < s.end) & (lab != "")
+        names, counts = np.unique(lab[m], return_counts=True)
+        out[s.id] = {str(n) for n, k in zip(names, counts) if k >= 2}  # seen at least twice
+    return out
+
+
 @app.command()
-def summarize(movie_id: str, context: str = ""):
+def summarize(
+    movie_id: str,
+    context: str = "",
+    redo_states: bool = typer.Option(False, help="regenerate all character states (keeps summaries)"),
+):
     folder, movie, cast = _load(movie_id)
     path = folder / "knowledge" / "scenes.json"
     scs = [Scene(**s) for s in json.loads(path.read_text(encoding="utf-8"))]
@@ -95,6 +144,8 @@ def summarize(movie_id: str, context: str = ""):
     existing = [CharacterState(**s) for s in json.loads(states_path.read_text(encoding="utf-8"))] \
         if states_path.exists() else []
     existing = [s for s in existing if s.scene_id]  # resumable; drop hand-written checkpoints
+    if redo_states:
+        existing = []  # the old file stays in use until the new one is written at the end
     states = build_states(scs, cast, existing)
     _save_json(states_path, [s.model_dump() for s in states])
 
@@ -146,6 +197,47 @@ def faces(movie_id: str, size: str = "640x640"):
         c.face_image = out.name
         typer.echo(f"{c.id}: {out}")
     _save_cast(folder, cast)
+
+
+@app.command()
+def faceindex(
+    movie_id: str,
+    step: str = typer.Option("all", help="scan | identify | looks | all"),
+    workers: int = 8,
+    fps: float = 1.0,
+):
+    """Index every face in the film, recognise who is who, and cut the best looks per scene.
+    Needs knowledge/scenes.json with speakers (run `screenplay` or `scenes` first)."""
+    import time
+
+    from preprocess import face_index as fi
+
+    folder, movie, cast = _load(movie_id)
+    video = folder / movie.video
+    index = folder / "cache" / "face_index.npz"
+    index.parent.mkdir(parents=True, exist_ok=True)
+    scenes = json.loads((folder / "knowledge" / "scenes.json").read_text(encoding="utf-8"))
+    if step in ("scan", "all"):
+        t0 = time.time()
+        dur = movie.duration_s or float(subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(video)],
+            capture_output=True, text=True).stdout.strip())
+        n = fi.scan(video, dur, index, fps=fps, workers=workers)
+        typer.echo(f"scan: {n} faces in {time.time() - t0:.0f}s")
+    if step in ("identify", "all"):
+        report = fi.identify(index, scenes, [c.id for c in cast])
+        for cid, r in report.items():
+            typer.echo(f"  {cid:12s} seeds={r['seeds']:4d} kept={r['kept']:4d} labelled faces={r.get('faces', 0)}")
+    if step in ("looks", "all"):
+        t0 = time.time()
+        looks_dir = folder / "cache" / "looks"
+        looks = fi.build_looks(index, video, scenes, looks_dir, workers=workers)
+        fi.save_looks(folder / "knowledge" / "looks.json", looks)
+        sheets = folder / "cache" / "sheets"
+        sheets.mkdir(exist_ok=True)
+        for c in cast:
+            fi.contact_sheet(index, looks_dir, looks, c.id, sheets / f"{c.id}.jpg")
+        typer.echo(f"looks: {len(looks)} crops in {time.time() - t0:.0f}s; review cache/sheets/*.jpg")
 
 
 @app.command("all")

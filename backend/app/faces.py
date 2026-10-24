@@ -118,3 +118,91 @@ def faces_at(video: Path, t: float, cache_dir: Path, window: float = 6.0, fps: f
         x, y, w, h = (int(v) for v in tr["f"][:4])
         out.append(FaceCrop(fid, round(tr["t"], 2), round(float(tr["q"]), 3), (x, y, w, h)))
     return out
+
+
+# ---------------------------------------------------------------- recognise faces at the pause point
+
+REC_MODEL = Path(__file__).resolve().parents[1] / "models" / "face_recognition_sface_2021dec.onnx"
+_W, _H = 1280, 720  # same analysis resolution as the offline index
+_rec = None
+_cores_cache: dict[str, tuple[int, dict[str, np.ndarray]]] = {}
+
+
+def _get_recognizer():
+    global _rec
+    if _rec is None:
+        _rec = cv2.FaceRecognizerSF.create(str(REC_MODEL), "")
+    return _rec
+
+
+def _load_cores(path: Path) -> dict[str, np.ndarray]:
+    """Per-character face embeddings from `preprocess faceindex` (cached, reloaded if the file changes)."""
+    if not path.exists():
+        return {}
+    mtime = path.stat().st_mtime_ns
+    hit = _cores_cache.get(str(path))
+    if hit and hit[0] == mtime:
+        return hit[1]
+    cores = dict(np.load(path))
+    _cores_cache[str(path)] = (mtime, cores)
+    return cores
+
+
+def _grab_frame(video: Path, t: float) -> np.ndarray | None:
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "f.png"
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", f"{max(t, 0):.3f}", "-i", str(video),
+                        "-frames:v", "1", str(out)], check=False)
+        return cv2.imread(str(out)) if out.exists() else None
+
+
+def recognise_frame(video: Path, t: float, cores_path: Path, cache_dir: Path,
+                    min_sim: float = 0.45, margin: float = 0.06) -> list[dict]:
+    """Detect faces in the exact frame at t and say who each one is.
+
+    Returns boxes normalised to the full video frame (so the UI can draw them over the player), the
+    character id when recognised (same rule as the offline index: best match, clearly ahead of the
+    runner-up), and a head-and-shoulders crop of that face (fallback avatar picture)."""
+    full = _grab_frame(video, t)
+    if full is None:
+        return []
+    src_h, src_w = full.shape[:2]
+    small = cv2.resize(full, (_W, _H), interpolation=cv2.INTER_AREA)
+    det = _get_detector()
+    det.setInputSize((_W, _H))
+    _, found = det.detect(small)
+    if found is None:
+        return []
+    rec = _get_recognizer()
+    cores = _load_cores(cores_path)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    key = hashlib.md5(f"frame:{video.name}:{t:.2f}".encode()).hexdigest()[:10]
+    top, bottom = _content_rows(full)
+    sx, sy = src_w / _W, src_h / _H
+    out = []
+    for i, f in enumerate(sorted(found, key=lambda f: -f[2] * f[3])):  # biggest first
+        if f[3] < 28:
+            continue
+        emb = rec.feature(rec.alignCrop(small, f)).flatten()
+        emb = emb / (np.linalg.norm(emb) + 1e-9)
+        scores = sorted(((float(np.sort(c @ emb)[-5:].mean()), cid) for cid, c in cores.items()), reverse=True)
+        cid, conf = None, 0.0
+        if scores and scores[0][0] >= min_sim and (len(scores) == 1 or scores[0][0] - scores[1][0] >= margin):
+            conf, cid = scores[0]
+        full_box = np.array([f[0] * sx, f[1] * sy, f[2] * sx, f[3] * sy, *f[4:14] * np.tile([sx, sy], 5), f[14]])
+        fid = f"{key}_{i}"
+        cv2.imwrite(str(cache_dir / f"{fid}.jpg"), _crop(full, full_box, top, bottom), [cv2.IMWRITE_JPEG_QUALITY, 92])
+        out.append({
+            "box": [round(float(f[0]) / _W, 4), round(float(f[1]) / _H, 4),
+                    round(float(f[2]) / _W, 4), round(float(f[3]) / _H, 4)],
+            "character_id": cid, "confidence": round(conf, 3), "face_id": fid,
+        })
+    # one person per frame: if two faces got the same name, keep the more confident one
+    best: dict[str, dict] = {}
+    for o in out:
+        if o["character_id"] and (o["character_id"] not in best or o["confidence"] > best[o["character_id"]]["confidence"]):
+            best[o["character_id"]] = o
+    for o in out:
+        if o["character_id"] and best[o["character_id"]] is not o:
+            o["character_id"], o["confidence"] = None, 0.0
+    return out

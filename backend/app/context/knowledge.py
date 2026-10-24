@@ -38,6 +38,11 @@ class MovieKnowledge:
             scenes = self._fallback_scenes()
         self.scenes: list[Scene] = sorted((Scene(**s) for s in scenes), key=lambda s: s.start)
         self.scene_by_id = {s.id: s for s in self.scenes}
+        self.scene_order = {s.id: i for i, s in enumerate(self.scenes)}
+        # best face crops per scene and character (preprocess `faceindex`), cache/looks/<id>.jpg
+        self.looks: dict[str, list[dict]] = {}
+        for lk in _read_json(folder / "knowledge" / "looks.json", []):
+            self.looks.setdefault(lk["scene_id"], []).append(lk)
         self.states: list[CharacterState] = sorted(
             (CharacterState(**s) for s in _read_json(folder / "knowledge" / "character_states.json", [])),
             key=lambda s: s.t,
@@ -72,10 +77,40 @@ class MovieKnowledge:
         speakers = {ln.speaker for ln in scene.lines if ln.speaker}
         return character_id in speakers if speakers else True
 
+    def viewer_frontier(self, t: float) -> float | None:
+        """How far into the story's main ("past") timeline the viewer has watched by t.
+
+        Frame-story scenes (a 1954 hearing shown in minute 2) don't count: seeing someone in 1954
+        doesn't tell the viewer what happened between the flashbacks and 1954.
+        """
+        years = [s.story_year for s in self.scenes
+                 if s.start < t and s.story_year is not None and s.thread in (None, "past")]
+        return max(years) if years else None
+
     def now_year(self, t: float) -> float | None:
-        """Story time of what's on screen at t (None for linear films without story_year)."""
+        """The story moment the character speaks from (None for linear films).
+
+        Normally the story year of the scene on screen. But if that scene is a frame story *ahead*
+        of what the viewer has seen (a 1954 hearing while the flashbacks have only reached 1943),
+        the character is anchored at the viewer's frontier instead: a 1954 Oppenheimer knows the
+        bomb worked and models can't reliably keep that secret, so we talk to the 1943 one.
+        """
         s = self.current_scene(t)
-        return s.story_year if s else None
+        if s is None or s.story_year is None:
+            return None
+        frontier = self.viewer_frontier(t)
+        if s.thread not in (None, "past") and (frontier is None or s.story_year > frontier + 1.0):
+            if frontier is not None:
+                return frontier
+            # opening flash-forward, nothing of the main story seen yet: speak from where the main
+            # story begins (a character with no year falls back on what the model knows — spoilers)
+            return min((x.story_year for x in self.scenes
+                        if x.thread in (None, "past") and x.story_year is not None), default=None)
+        return s.story_year
+
+    def is_anchored(self, t: float) -> bool:
+        s = self.current_scene(t)
+        return bool(s and s.story_year is not None and self.now_year(t) != s.story_year)
 
     def known_scenes(self, character_id: str, t: float) -> list[Scene]:
         """Scenes the character witnessed that the viewer has already seen, as of the story
@@ -114,6 +149,25 @@ class MovieKnowledge:
         out.sort(key=lambda s: (s.story_year if s.story_year is not None else 0.0, s.start))
         return out
 
+    # ---------- omniscient mode: the whole story, no time limits ----------
+
+    def all_scenes_of(self, character_id: str) -> list[Scene]:
+        """Every scene the character is in, in story order (omniscient / "what if" mode)."""
+        out = [s for s in self.scenes if self._was_present(s, character_id)]
+        out.sort(key=lambda s: (s.story_year if s.story_year is not None else 0.0, s.start))
+        return out
+
+    def other_scenes(self, character_id: str) -> list[Scene]:
+        """Scenes the character is NOT in (they'd have heard about the big events later)."""
+        out = [s for s in self.scenes if not self._was_present(s, character_id)]
+        out.sort(key=lambda s: (s.story_year if s.story_year is not None else 0.0, s.start))
+        return out
+
+    def final_state(self, character_id: str) -> CharacterState | None:
+        order = {s.id: i for i, s in enumerate(self.all_scenes_of(character_id))}
+        mine = [st for st in self.states if st.character_id == character_id and st.scene_id in order]
+        return max(mine, key=lambda st: order[st.scene_id]) if mine else None
+
     def current_scene(self, t: float) -> Scene | None:
         """The scene playing at t, or the last one that started before t (gaps between scenes)."""
         last = None
@@ -125,12 +179,34 @@ class MovieKnowledge:
                 return s
         return last
 
+    def best_look(self, character_id: str, t: float, max_back: int = 12) -> dict | None:
+        """Sharpest, most frontal face of the character *as they look now*: from the current scene
+        before t; otherwise from the closest earlier scene they appeared in (similar costume/age).
+        Never from after t, so the picture can't spoil anything."""
+        cur = self.current_scene(t)
+        if cur is None or not self.looks:
+            return None
+        i = self.scene_order[cur.id]
+        for s in reversed(self.scenes[max(0, i - max_back): i + 1]):
+            cands = [lk for lk in self.looks.get(s.id, [])
+                     if lk["character_id"] == character_id and lk["t"] <= t]
+            if cands:
+                return max(cands, key=lambda lk: lk["q"])
+        return None
+
     def characters_at(self, t: float) -> list[Character]:
-        """Characters on screen around t (for the picker). Falls back to everyone."""
-        window = [s for s in self.scenes if s.start <= t + 5 and s.end >= t - 30]
-        ids: list[str] = []
+        """Characters around t for the picker: first those whose face we've seen in this scene up to t
+        (best shot first), then others present. Falls back to everyone."""
+        cur = self.current_scene(t)
+        seen_now: dict[str, float] = {}
+        if cur:
+            for lk in self.looks.get(cur.id, []):
+                if lk["t"] <= t and lk["character_id"] in self.characters:
+                    seen_now[lk["character_id"]] = max(seen_now.get(lk["character_id"], 0), lk["q"])
+        ids = sorted(seen_now, key=lambda c: -seen_now[c])
+        window = [s for s in self.scenes if s.start <= t and s.end >= t - 30]
         for s in window:
-            for cid in s.characters_present + [ln.speaker for ln in s.lines if ln.speaker]:
+            for cid in s.characters_present + [ln.speaker for ln in s.lines if ln.speaker and ln.start <= t]:
                 if cid and cid not in ids and cid in self.characters:
                     ids.append(cid)
         return [self.characters[i] for i in ids] or list(self.characters.values())
@@ -156,7 +232,8 @@ class MovieKnowledge:
         return lines
 
 
-_DATA_FILES = ("movie.json", "characters.json", "knowledge/scenes.json", "knowledge/character_states.json")
+_DATA_FILES = ("movie.json", "characters.json", "knowledge/scenes.json", "knowledge/character_states.json",
+               "knowledge/looks.json")
 
 
 def _signature(folder: Path) -> tuple:

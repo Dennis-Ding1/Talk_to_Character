@@ -18,7 +18,7 @@ import websockets  # noqa: E402
 
 from app.boson.client import REALTIME_MODEL, REALTIME_URL, BosonClient  # noqa: E402
 from app.context.knowledge import load_movie  # noqa: E402
-from app.context.persona import TOOLS, build_instructions  # noqa: E402
+from app.context.persona import TOOLS, build_instructions, turn_note  # noqa: E402
 from app.routers.tools import run_tool  # noqa: E402
 from app.schemas import ToolCall  # noqa: E402
 
@@ -41,11 +41,13 @@ def parse_t(s: str) -> float:
     return t
 
 
-async def ask(movie: str, character: str, t: float, questions: list[str], show_prompt: bool):
+async def ask(movie: str, character: str, t: float, questions: list[str], show_prompt: bool,
+              knowledge: str = "present"):
     kb = load_movie(movie)
-    instructions = build_instructions(kb, character, t)
+    instructions = build_instructions(kb, character, t, knowledge)
     cur = kb.current_scene(t)
-    print(f"[{movie} @ {t / 60:.1f} min] on screen: {cur.slug if cur else '?'} (story year {cur.story_year if cur else '?'})")
+    print(f"[{movie} @ {t / 60:.1f} min] on screen: {cur.slug if cur else '?'} (story year {cur.story_year if cur else '?'})"
+          + (f" -> anchored at viewer progress {kb.now_year(t)}" if kb.is_anchored(t) else ""))
     print(f"[{character}] knows {len(kb.known_scenes(character, t))} scenes; prompt {len(instructions)} chars")
     if show_prompt:
         print("-" * 60 + "\n" + instructions + "\n" + "-" * 60)
@@ -64,6 +66,8 @@ async def ask(movie: str, character: str, t: float, questions: list[str], show_p
             print(f"\nYou: {q}")
             await ws.send(json.dumps({"type": "conversation.item.create", "item": {
                 "type": "message", "role": "user", "content": [{"type": "input_text", "text": language_hint(q)}]}}))
+            await ws.send(json.dumps({"type": "conversation.item.create", "item": {
+                "type": "message", "role": "user", "content": [{"type": "input_text", "text": turn_note(kb, t, knowledge)}]}}))
             await ws.send(json.dumps({"type": "response.create"}))
             out: list[str] = []
             pending_tools = 0
@@ -74,7 +78,8 @@ async def ask(movie: str, character: str, t: float, questions: list[str], show_p
                     out.append(ev["delta"])
                 elif typ == "response.function_call_arguments.done":
                     args = json.loads(ev.get("arguments") or "{}")
-                    res = run_tool(ev["name"], ToolCall(movie_id=movie, character_id=character, t=t, arguments=args))
+                    res = run_tool(ev["name"], ToolCall(movie_id=movie, character_id=character, t=t, knowledge=knowledge,
+                                                         arguments=args))
                     print(f"  (tool {ev['name']}({args}) -> {res['result'][:120]!r}...)")
                     await ws.send(json.dumps({"type": "conversation.item.create", "item": {
                         "type": "function_call_output", "call_id": ev["call_id"], "output": res["result"]}}))
@@ -98,5 +103,7 @@ if __name__ == "__main__":
     ap.add_argument("t", help="pause time, e.g. 44:00 or 1:16:30 or seconds")
     ap.add_argument("questions", nargs="+")
     ap.add_argument("--show-prompt", action="store_true")
+    ap.add_argument("--omniscient", action="store_true", help="knows the whole story (what-if mode)")
     a = ap.parse_args()
-    asyncio.run(ask(a.movie, a.character, parse_t(a.t), a.questions, a.show_prompt))
+    asyncio.run(ask(a.movie, a.character, parse_t(a.t), a.questions, a.show_prompt,
+                    "omniscient" if a.omniscient else "present"))

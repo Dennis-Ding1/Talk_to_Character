@@ -30,6 +30,8 @@ export function detectLanguage(text: string): string | null {
 export class RealtimeSession {
   private ws?: WebSocket;
   private textBuf = new Map<string, string>();
+  /** Short instruction appended after every user turn (backend-provided). */
+  turnNote = "";
 
   constructor(private h: RealtimeHandlers) {}
 
@@ -64,12 +66,23 @@ export class RealtimeSession {
   }
 
   /** Push-to-talk: end of the user's turn -> ask for a reply. */
+  /** Push-to-talk: end of the user's spoken turn (the reply is requested with respond()). */
   commitAudio() {
     this.send({ type: "input_audio_buffer.commit" });
+  }
+
+  /** Ask for the reply: optional context notes (e.g. relevant memories), the director's note, go. */
+  respond(notes: string[] = []) {
+    for (const n of [...notes, this.turnNote].filter(Boolean)) {
+      this.send({
+        type: "conversation.item.create",
+        item: { type: "message", role: "user", content: [{ type: "input_text", text: n }] },
+      });
+    }
     this.send({ type: "response.create" });
   }
 
-  sendText(text: string) {
+  sendText(text: string, notes: string[] = []) {
     // The character's memories are in English, which pulls replies toward English.
     // A short hint keeps typed questions answered in the user's language.
     const lang = detectLanguage(text);
@@ -78,7 +91,7 @@ export class RealtimeSession {
       type: "conversation.item.create",
       item: { type: "message", role: "user", content: [{ type: "input_text", text: withHint }] },
     });
-    this.send({ type: "response.create" });
+    this.respond(notes);
   }
 
   /** Mid-session context change, e.g. the user scrubbed the video while chatting. */

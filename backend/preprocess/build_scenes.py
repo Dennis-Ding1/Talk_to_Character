@@ -96,8 +96,11 @@ def build(folder: Path, cast: list[Character], subtitles: str, duration: float |
         lines, speakers = [], set()
         for c in cs:
             spk = _speaker_id(c.label, idx) if c.label else _speaker_id(c.speaker, idx)
-            lines.append(SubtitleLine(start=round(c.start, 3), end=round(c.end, 3), text=c.text, speaker=spk))
-            if spk and (c.label or c.script_line not in vo_lines):
+            vo = c.script_line in vo_lines
+            lines.append(SubtitleLine(start=round(c.start, 3), end=round(c.end, 3), text=c.text, speaker=spk, vo=vo))
+            # On screen = says a non-voice-over screenplay line. An SDH label alone ("STRAUSS: ...") is
+            # often there precisely because the speaker is off screen (narration over a flashback).
+            if spk and c.script_line is not None and c.script_line not in vo_lines:
                 speakers.add(spk)
         action = " ".join(s.action)
         year, thread = years.get(sc, (None, "past"))
