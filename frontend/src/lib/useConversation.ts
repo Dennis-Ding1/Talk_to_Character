@@ -4,6 +4,8 @@ import { api } from "./api";
 import { Mic } from "./audio/mic";
 import { PcmPlayer } from "./audio/pcm-player";
 import { RealtimeSession } from "./realtime";
+import { SentenceChunker } from "./sentences";
+import { SpeechQueue } from "./speech";
 
 export type Status = "idle" | "connecting" | "ready" | "listening" | "thinking" | "speaking" | "error";
 
@@ -31,6 +33,10 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
   const player = useRef<PcmPlayer>();
   const responding = useRef(false);
   const transcriptWaiter = useRef<((text: string) => void) | null>(null);
+  const speech = useRef<SpeechQueue>();
+  const chunkers = useRef(new Map<string, SentenceChunker>());
+  const spokenText = useRef(new Map<string, string>()); // reply id -> checked text spoken so far
+  const lastQuestion = useRef("");
   const onAvatarRef = useRef(onAvatar);
   onAvatarRef.current = onAvatar;
   const onInterruptRef = useRef(onInterrupt);
@@ -51,6 +57,28 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
     setStatus("connecting");
     setMessages([]);
     player.current = new PcmPlayer();
+    const base = { movie_id: movieId, character_id: characterId, t, knowledge };
+    // think -> check -> speak: every sentence of the reply is spoiler-checked and spoken with the
+    // cloned voice by the backend; the chat shows only the checked text, as it is spoken
+    const saveSpoken = () => {
+      for (const [id, text] of spokenText.current) {
+        if (text.trim()) void api.saveTurn(movieId, characterId, knowledge, "assistant", text.trim(), t);
+        spokenText.current.delete(id);
+      }
+    };
+    speech.current = new SpeechQueue(player.current, {
+      request: (text, signal) => api.speak({ ...base, text, question: lastQuestion.current }, signal),
+      onSpoken: (text, _rewritten, id) => {
+        const prev = spokenText.current.get(id) ?? "";
+        spokenText.current.set(id, prev ? `${prev} ${text}` : text);
+        upsert(id, "assistant", prev ? ` ${text}` : text, true);
+      },
+      onStart: () => setStatus("speaking"),
+      onIdle: () => {
+        saveSpoken();
+        setStatus((s) => (s === "listening" ? s : "ready"));
+      },
+    });
 
     (async () => {
       const s = await api.session(movieId, characterId, t, mode, knowledge);
@@ -63,25 +91,37 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
       }
       const session = new RealtimeSession({
         onUserTranscript: (id, text) => {
+          lastQuestion.current = text;
           transcriptWaiter.current?.(text);
           transcriptWaiter.current = null;
           upsert(id, "user", text);
           void api.saveTurn(movieId, characterId, knowledge, "user", text, t);
         },
-        onAudioDelta: (b64) => {
-          setStatus("speaking");
-          player.current?.push(b64);
+        onAssistantDelta: (id, d) => {
+          if (mode === "lip_sync") return; // spoken as one clip when complete (see onAssistantDone)
+          let c = chunkers.current.get(id);
+          if (!c) {
+            c = new SentenceChunker((sentence) => speech.current?.enqueue(sentence, id));
+            chunkers.current.set(id, c);
+          }
+          c.push(d);
         },
-        onAssistantDelta: (id, d) => upsert(id, "assistant", d, true),
         onAssistantDone: (id, text) => {
-          upsert(id, "assistant", text);
-          void api.saveTurn(movieId, characterId, knowledge, "assistant", text, t);
-          if (mode === "lip_sync") onAvatarRef.current?.({ text });
+          if (mode === "lip_sync") {
+            // check the whole reply, then show it and let the avatar speak it
+            void api.check({ ...base, text, question: lastQuestion.current }).then(({ text: safe }) => {
+              upsert(id, "assistant", safe);
+              void api.saveTurn(movieId, characterId, knowledge, "assistant", safe, t);
+              onAvatarRef.current?.({ text: safe });
+            });
+            return;
+          }
+          chunkers.current.get(id)?.flush();
+          chunkers.current.delete(id);
         },
         onResponseDone: () => {
           responding.current = false;
-          setStatus((s) => (s === "listening" ? s : "ready"));
-          player.current?.takeRecording(); // drop the buffered reply audio
+          if (!speech.current?.busy) setStatus((s) => (s === "listening" || s === "thinking" && mode === "lip_sync" ? s : "ready"));
         },
         onToolCall: async (name, args) => {
           responding.current = true; // a follow-up response is created after the tool result
@@ -108,6 +148,7 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
     return () => {
       cancelled = true;
       mic.current?.stop();
+      speech.current?.stop();
       player.current?.stop();
       rt.current?.close();
       rt.current = undefined;
@@ -131,6 +172,8 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
 
   /** Cut the character off if they're still answering (user is taking the turn). */
   const interrupt = useCallback(() => {
+    speech.current?.stop();
+    chunkers.current.clear();
     player.current?.stop();
     onInterruptRef.current?.();
     if (responding.current) {
@@ -182,6 +225,7 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
     async (text: string) => {
       await player.current?.resume();
       interrupt();
+      lastQuestion.current = text;
       upsert(`local-${Date.now()}`, "user", text);
       void api.saveTurn(movieId, characterId, knowledge, "user", text, t);
       responding.current = true;

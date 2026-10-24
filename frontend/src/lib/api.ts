@@ -35,6 +35,22 @@ export const api = {
       json<{ result: string }>,
     ),
 
+  /** one sentence -> spoiler check -> cloned-voice PCM stream (X-Spoken-Text = what was said) */
+  speak: (
+    body: { movie_id: string; character_id: string; t: number; knowledge: KnowledgeMode; text: string; question: string },
+    signal?: AbortSignal,
+  ) =>
+    fetch("/api/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    }),
+
+  /** spoiler check only (lip-sync mode) */
+  check: (body: { movie_id: string; character_id: string; t: number; knowledge: KnowledgeMode; text: string; question: string }) =>
+    post("/api/check", body).then(json<{ spoiler: boolean; text: string }>),
+
   /** context to attach to one question: relevant memories + "you've never met X" notes */
   questionNotes: (movieId: string, characterId: string, t: number, knowledge: KnowledgeMode, question: string) =>
     post("/api/question_notes", { movie_id: movieId, character_id: characterId, t, knowledge, question }).then(

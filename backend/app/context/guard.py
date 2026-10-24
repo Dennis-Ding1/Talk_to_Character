@@ -17,13 +17,33 @@ from app.config import get_settings
 from app.context.knowledge import MovieKnowledge
 
 GUARD_SYSTEM = """You are a spoiler filter for an interactive film. A viewer paused the film and is talking
-to a character. You get: what the viewer has NOT seen yet (future events), and one sentence the
-character is about to say. Decide if the sentence reveals, confirms or strongly hints at any future
-event, or states the outcome of something whose outcome the viewer hasn't seen (e.g. that a test
-worked, that someone dies, how a trial ends). Talking about plans, hopes, fears, preparations and
-uncertainty is fine. If it spoils, rewrite it in the same voice and language so it says the thing
-hasn't happened yet / the character doesn't know yet — revealing nothing from the future events.
-Return JSON only: {"spoiler": true|false, "rewrite": "<sentence or empty>"}"""
+to a character. You get: where the film is paused, what the viewer HAS already seen recently, what the
+viewer has NOT seen yet (future events), and one sentence the character is about to say.
+SPOILER = the sentence reveals, confirms or strongly implies any future event, or states the result
+of something whose result the viewer hasn't seen yet (e.g. "it worked", "it's done, we changed the
+world", someone dies, how a hearing ends). Anything already seen is NOT a spoiler: if the sentence is
+consistent with the already-seen events (e.g. a result the viewer just watched), it is fine even if a
+similar-sounding future event exists. When a claim could refer to an already-seen event, assume it
+does (e.g. right after a test the viewer watched, "it worked" is about that test, not a later one).
+Only flag claims that can ONLY come from the future events. Plans, hopes, fears, preparations and
+uncertainty are fine.
+If it is a spoiler, write a replacement in the same voice and language that says it hasn't happened
+yet / the character doesn't know yet, with no information from the future events. The replacement
+must not contain the spoiling claim.
+Return JSON only: {"spoiler": true|false, "rewrite": "<replacement, or empty>"}"""
+
+# used if the checker flags a spoiler but fails to produce a usable replacement
+FALLBACK = {"en": "I can't tell you that yet. We'll see.", "zh": "这个我现在还说不好，走着瞧吧。"}
+CJK = re.compile(r"[一-鿿]")
+
+
+def seen_recently(kb: MovieKnowledge, t: float, n: int = 10) -> list[str]:
+    """All key events of the last scenes the viewer has watched (so a known outcome isn't flagged)."""
+    seen = [s for s in kb.scenes if s.end <= t and (s.key_events or s.summary)][-n:]
+    out: list[str] = []
+    for s in seen:
+        out.extend(s.key_events or [s.summary.split(". ")[0]])
+    return list(dict.fromkeys(out))
 
 
 def future_facts(kb: MovieKnowledge, character_id: str, t: float, limit: int = 70) -> list[str]:
@@ -75,8 +95,12 @@ async def check_sentence(kb: MovieKnowledge, character_id: str, t: float, senten
     if not facts or not sentence.strip():
         return False, sentence
     c = kb.character(character_id)
-    user = (f"Character: {c.name}\n"
-            f"Future events the viewer has NOT seen yet:\n- " + "\n- ".join(facts) +
+    now = kb.current_scene(t)
+    where = (f"{now.slug.split('--')[0].strip()} ({int(now.story_year)})" if now and now.story_year
+             else (now.slug if now else "?"))
+    user = (f"Character: {c.name}\nFilm paused at: {where}\n"
+            "Already seen by the viewer (most recent last):\n- " + "\n- ".join(seen_recently(kb, t)) +
+            "\n\nFuture events the viewer has NOT seen yet:\n- " + "\n- ".join(facts) +
             (f"\n\nThe viewer asked: {question}" if question else "") +
             f"\n\nSentence the character is about to say:\n{sentence}")
     try:
@@ -85,6 +109,9 @@ async def check_sentence(kb: MovieKnowledge, character_id: str, t: float, senten
         verdict = json.loads(m.group(0)) if m else {}
     except Exception:  # noqa: BLE001 — never block the conversation on the guard
         return False, sentence
-    if verdict.get("spoiler") and str(verdict.get("rewrite", "")).strip():
-        return True, str(verdict["rewrite"]).strip()
-    return False, sentence
+    if not verdict.get("spoiler"):
+        return False, sentence
+    rewrite = str(verdict.get("rewrite", "")).strip()
+    if not rewrite or rewrite.lower().rstrip(".!") == sentence.lower().strip().rstrip(".!"):
+        rewrite = FALLBACK["zh"] if CJK.search(sentence) else FALLBACK["en"]
+    return True, rewrite

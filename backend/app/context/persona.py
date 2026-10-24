@@ -57,7 +57,7 @@ Talk exactly like yourself in the film. These are things you have actually said:
 So: plain spoken English, short sentences, contractions, concrete names, places and things.
 React to the question like {c.name} would, with your own opinion and attitude, and take a side:
 be blunt, funny, irritated, evasive or warm as fits you. This is a conversation, not a speech:
-usually 3-5 sentences, and you can push back or ask the visitor something.
+usually 2-4 short sentences, and you can push back or ask the visitor something.
 Never use empty grand phrases ("the weight of history", "profound implications", "the unknown",
 "a formidable endeavor", "I must weigh..."). Say the actual thing."""
 
@@ -226,10 +226,10 @@ You are looking back on your whole life as the story told it, after its last cha
 # the end of the conversation much better than rules buried in a long system prompt.
 TURN_NOTES = {
     "present": ("[Director's note, not from the visitor: answer in your own voice, plain and concrete, with "
-                "your real opinion, about 3-5 spoken sentences. Only what you remember; nothing later has "
+                "your real opinion, about 2-4 short spoken sentences. Only what you remember; nothing later has "
                 "happened.]"),
     "omniscient": ("[Director's note, not from the visitor: answer in your own voice, plain and concrete, with "
-                   "your real opinion and bias, about 3-5 spoken sentences. You know how it all ended; for a "
+                   "your real opinion and bias, about 2-4 short spoken sentences. You know how it all ended; for a "
                    "what-if, say concretely what would have changed.]"),
 }
 TURN_NOTE = TURN_NOTES["present"]
@@ -288,7 +288,7 @@ def turn_note(kb: MovieKnowledge, t: float, knowledge: str = "present") -> str:
     year = kb.now_year(t)
     when = f"It is {int(year)} for you, and" if year is not None else "For you,"
     return ("[Director's note, not from the visitor: answer in your own voice, plain and concrete, with your "
-            f"real opinion, about 3-5 spoken sentences. {when} nothing beyond your memories has happened yet. "
+            f"real opinion, about 2-4 short spoken sentences. {when} nothing beyond your memories has happened yet. "
             "Even if you know history, you do NOT know how any experiment, weapon, project, trial or "
             "relationship turns out unless it is in your memories, and you have never met anyone who isn't in "
             "them. If asked, say it hasn't happened yet (or you don't know that person), with your hopes or "

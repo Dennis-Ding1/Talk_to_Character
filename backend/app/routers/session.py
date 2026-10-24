@@ -31,8 +31,9 @@ async def create_session(req: SessionRequest):
     session = {
         "model": REALTIME_MODEL,
         "instructions": build_instructions(kb, req.character_id, req.t, req.knowledge),
-        # lip_sync: Realtime only thinks (text); the avatar endpoint speaks with the cloned voice.
-        "output_modalities": ["text"] if req.mode == "lip_sync" else ["audio"],
+        # Realtime only thinks (text). Each sentence is spoiler-checked and then spoken with the
+        # cloned voice by /api/speak (Higgs TTS), or by the avatar endpoint in lip_sync mode.
+        "output_modalities": ["text"],
         "audio": {
             "input": {
                 "format": {"type": "audio/pcm", "rate": 24000},
