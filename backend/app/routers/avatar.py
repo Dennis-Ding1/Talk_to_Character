@@ -6,7 +6,9 @@ render goes through one queue here, with a retry on rate limits.
 
 import asyncio
 import base64
+import hashlib
 import mimetypes
+import re
 import subprocess
 from pathlib import Path
 
@@ -62,7 +64,7 @@ async def _open_stream(client: BosonClient, body: dict, attempts: int = 4):
 
 @router.post("/stream")
 async def avatar_stream(req: AvatarRequest, request: Request):
-    kb, c, face_path = _resolve_face(req.movie_id, req.character_id, req.face_id)
+    _kb, c, face_path = _resolve_face(req.movie_id, req.character_id, req.face_id)
     client = BosonClient()
     if not client.enabled:
         raise HTTPException(503, "BOSON_API_KEY not configured")
@@ -120,16 +122,29 @@ def _duration(path: Path) -> float:
     return float(r.stdout.strip())
 
 
+def _idle_cache_key(character_id: str, face_id: str | None, face_path: Path) -> str:
+    """Stable per-character/per-image key; portraits in different folders are often both face.png."""
+    safe_character = re.sub(r"[^a-zA-Z0-9_-]", "_", character_id)[:40] or "character"
+    digest = hashlib.sha256()
+    digest.update(character_id.encode())
+    digest.update(b"\0")
+    digest.update((face_id or "portrait").encode())
+    digest.update(b"\0")
+    digest.update(face_path.read_bytes())
+    return f"{safe_character}.{digest.hexdigest()[:16]}"
+
+
 @router.get("/idle")
 async def avatar_idle(movie_id: str, character_id: str, face_id: str | None = None):
     """A seamlessly looping 'listening' clip for this face: Higgs Avatar driven by silence (blinks,
     small head motion, mouth closed). Everything plays forwards; the loop seam is hidden by
     cross-fading the clip's end into its own beginning (a reversed boomerang looked robotic).
     Rendered once per face and cached; shown under the talking clips so the avatar is never a still."""
-    kb, c, face_path = _resolve_face(movie_id, character_id, face_id)
+    kb, _c, face_path = _resolve_face(movie_id, character_id, face_id)
     out_dir = kb.folder / "cache" / "idle"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"{face_path.stem}.v2.mp4"
+    cache_key = _idle_cache_key(character_id, face_id, face_path)
+    out = out_dir / f"{cache_key}.v3.mp4"
     if out.exists():
         return FileResponse(out, media_type="video/mp4")
 
@@ -143,7 +158,7 @@ async def avatar_idle(movie_id: str, character_id: str, face_id: str | None = No
             if not silence.exists():
                 _silence_wav(silence, IDLE_SECONDS)
             body = client.avatar_body(_data_uri(face_path), audio=_data_uri(silence), size="640x640")
-            raw = out_dir / f"{face_path.stem}.raw.mp4"
+            raw = out_dir / f"{cache_key}.raw.mp4"
             async with _render_slot:
                 first, stream = await _open_stream(client, body)
                 with raw.open("wb") as f:

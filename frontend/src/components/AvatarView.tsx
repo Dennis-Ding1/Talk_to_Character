@@ -55,6 +55,7 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
 
   // onShown: called once, when this clip's first frame is on screen, or when it fails / is dropped
   const start = async (body: { text?: string; audio_b64?: string }, onShown?: () => void) => {
+    setErr(null);
     let shownCalled = false;
     const shown = () => {
       if (shownCalled) return;
@@ -137,6 +138,7 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
 
   useEffect(() => {
     setIdleOn(false);
+    setErr(null);
     return () => {
       pending.current?.abort();
       talk.forEach((v) => v.current?.pause());

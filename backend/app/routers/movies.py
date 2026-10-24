@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.context.knowledge import MovieNotFound, list_movies, load_movie, resolve
-from app.schemas import Character, CharacterAtTime, Movie
+from app.schemas import CharacterAtTime, Movie
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
@@ -90,16 +90,28 @@ def frame_faces(movie_id: str, t: float):
     video_path = kb.folder / kb.movie.video
     if not video_path.exists():
         return []
-    faces = recognise_frame(video_path, t, kb.folder / "cache" / "face_cores.npz", kb.folder / "cache" / "faces")
+    animation_profile = kb.folder / "knowledge" / "animation_faces.json"
+    faces = recognise_frame(
+        video_path,
+        t,
+        kb.folder / "cache" / "face_cores.npz",
+        kb.folder / "cache" / "faces",
+        animation_profile=animation_profile,
+    )
     out = []
     for f in faces:
         c = kb.characters.get(f["character_id"] or "")
         character = None
         if c:
-            lk = kb.best_look(c.id, t)
-            character = CharacterAtTime(
-                **c.model_dump(), look_id=lk["id"] if lk else f["face_id"],
-                look_url=f"/api/movies/{movie_id}/faces/{lk['id'] if lk else f['face_id']}.jpg")
+            if animation_profile.exists():
+                # Recognition follows the current frame, but Higgs Avatar gets the curated,
+                # closed-mouth portrait. A speaking animation frame can bias its resting mouth.
+                character = CharacterAtTime(**c.model_dump())
+            else:
+                lk = kb.best_look(c.id, t)
+                character = CharacterAtTime(
+                    **c.model_dump(), look_id=lk["id"] if lk else f["face_id"],
+                    look_url=f"/api/movies/{movie_id}/faces/{lk['id'] if lk else f['face_id']}.jpg")
         out.append({**f, "face_url": f"/api/movies/{movie_id}/faces/{f['face_id']}.jpg", "character": character})
     return out
 

@@ -387,7 +387,7 @@ main.with-chat { grid-template-columns: minmax(0, 1fr) clamp(360px, 30vw, 440px)
 
 .portrait { position: relative; flex: none; }
 .avatar { position: relative; width: 100%; aspect-ratio: 1; max-height: 44vh; overflow: hidden; background: var(--velvet-sunk); }
-.avatar img, .avatar video { width: 100%; height: 100%; object-fit: cover; }
+.avatar img, .avatar video { width: 100%; height: 100%; object-fit: contain; object-position: center; }
 .avatar::after {
   content: "";
   position: absolute;
@@ -398,7 +398,7 @@ main.with-chat { grid-template-columns: minmax(0, 1fr) clamp(360px, 30vw, 440px)
 }
 .avatar-err { position: absolute; top: 52px; left: 16px; z-index: 5; font-size: 12px; color: var(--text-2); background: var(--velvet-deep); padding: 3px 8px; }
 /* avatar: photo + two videos stacked, cross-faded */
-.avatar .avatar-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.25s ease; }
+.avatar .avatar-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; opacity: 0; transition: opacity 0.25s ease; }
 .avatar .avatar-layer.talk { z-index: 2; }
 .avatar .avatar-layer.on { opacity: 1; }
 
