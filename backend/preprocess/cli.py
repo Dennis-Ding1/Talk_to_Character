@@ -201,9 +201,13 @@ def voices(
     register: bool = True,
     only: str = typer.Option(None, help="comma-separated character ids"),
     redo: bool = typer.Option(False, help="re-clone characters that already have a voice_id"),
+    reclip: bool = typer.Option(False, help="cut and clean the clip from the video again, even if "
+                                "characters/<id>/voice_ref.wav already exists"),
 ):
     """Clone each character's voice. Without a hand-picked voice_clip, one is found automatically
-    from speaker-attributed scenes (run `screenplay` first)."""
+    from speaker-attributed scenes (run `screenplay` first).
+    On a new API key (voices belong to the key that created them): `voices <movie> --redo` re-registers
+    the existing voice_ref.wav + voice_ref_text in a few seconds, without the video, demucs or whisper."""
     from preprocess.voice_auto import find_voice_clips
 
     folder, movie, cast = _load(movie_id)
@@ -213,6 +217,14 @@ def voices(
     scs = [Scene(**s) for s in json.loads(scenes_path.read_text(encoding="utf-8"))] if scenes_path.exists() else []
     for c in cast:
         if (wanted and c.id not in wanted) or (c.voice_id and not redo):
+            continue
+        cdir = folder / "characters" / c.id
+        ready = cdir / "voice_ref.wav"
+        if ready.exists() and c.voice_ref_text and not reclip:
+            if register:
+                c.voice_id = voice_clips.register_voice(ready, c.voice_ref_text, f"{movie.id}-{c.id}")
+            typer.echo(f"{c.id}: voice_id={c.voice_id} (from existing voice_ref.wav)")
+            _save_cast(folder, cast)
             continue
         if not c.voice_clip:
             found = find_voice_clips(scs, c.id) or find_voice_clips(scs, c.id, min_s=4.0)
