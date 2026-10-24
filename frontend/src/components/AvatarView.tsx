@@ -16,6 +16,7 @@ export interface AvatarHandle {
 
 interface Props {
   movieId: string;
+  t: number;
   character: Character;
   face: FaceCrop | null; // look at the pause point; falls back to the portrait
   mode: OutputMode;
@@ -34,7 +35,7 @@ interface Props {
  * Boson renders one clip at a time per account, so each reply is a single clip.
  */
 export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
-  { movieId, character, face, mode, speaking, onPlayingChange },
+  { movieId, t, character, face, mode, speaking, onPlayingChange },
   ref,
 ) {
   const talk = [useRef<HTMLVideoElement>(null), useRef<HTMLVideoElement>(null)];
@@ -76,7 +77,7 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
     el.volume = ducked.current ? 0.15 : 1;
     try {
       const res = await api.avatarStream(
-        { movie_id: movieId, character_id: character.id, face_id: face?.id, ...body },
+        { movie_id: movieId, character_id: character.id, t, face_id: face?.id, ...body },
         ctrl.signal,
       );
       await playFmp4Stream(el, res, {

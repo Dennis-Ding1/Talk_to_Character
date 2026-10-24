@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.boson.client import BosonClient, BosonError
+from app.context.delivery import tts_input
 from app.context.knowledge import MovieNotFound, resolve
 from app.routers.movies import face_crop_path
 from app.schemas import AvatarRequest
@@ -65,13 +66,23 @@ async def _open_stream(client: BosonClient, body: dict, attempts: int = 4):
 @router.post("/stream")
 async def avatar_stream(req: AvatarRequest, request: Request):
     _kb, c, face_path = _resolve_face(req.movie_id, req.character_id, req.face_id)
+    try:
+        state_kb, state_t = resolve(req.movie_id, req.t)
+        state = state_kb.state_at(req.character_id, state_t)
+    except (MovieNotFound, KeyError):
+        state = None
     client = BosonClient()
     if not client.enabled:
         raise HTTPException(503, "BOSON_API_KEY not configured")
     ref_image = _data_uri(face_path)
     try:
         if req.text:
-            body = client.avatar_body(ref_image, text=req.text, voice=c.voice_id, size=req.size)
+            body = client.avatar_body(
+                ref_image,
+                text=tts_input(req.text, c, state),
+                voice=c.voice_id,
+                size=req.size,
+            )
         elif req.audio_b64:
             body = client.avatar_body(ref_image, audio=f"data:audio/wav;base64,{req.audio_b64}", size=req.size)
         else:

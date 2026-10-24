@@ -91,6 +91,7 @@ export function ChatPanel({ movieId, character, face, t, mode, knowledge, onClos
         <AvatarView
           ref={avatar}
           movieId={movieId}
+          t={t}
           character={character}
           face={face}
           mode={mode}

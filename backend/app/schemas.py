@@ -39,6 +39,9 @@ class Character(BaseModel):
     bio: str = ""
     personality: str = ""
     speech_style: str = ""  # catchphrases, tone, dialect
+    # expressive: scene mood + speech style may become explicit TTS/Realtime delivery controls.
+    # subtle: preserve the cloned voice's natural performance; use tags only for cues in the reply.
+    delivery_profile: Literal["expressive", "subtle"] = "expressive"
     core: str = ""  # deep drives and beliefs that hold across the whole story (must not spoil anything)
     relationships: dict[str, str] = {}  # other character id -> description (baseline, t=0)
     # Assets
@@ -150,6 +153,7 @@ class ToolCall(BaseModel):
 class AvatarRequest(BaseModel):
     movie_id: str
     character_id: str
+    t: float = Field(default=0, ge=0)  # pause point, used only to choose current vocal delivery
     text: str | None = None  # lip_sync mode: drive with TTS
     audio_b64: str | None = None  # voice_first mode: drive with recorded reply audio (wav)
     face_id: str | None = None  # face crop from GET /api/movies/{id}/faces?t=

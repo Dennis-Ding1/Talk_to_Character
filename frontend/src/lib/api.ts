@@ -70,6 +70,7 @@ export const api = {
   avatarStream: (body: {
     movie_id: string;
     character_id: string;
+    t: number;
     face_id?: string;
     text?: string;
     audio_b64?: string;

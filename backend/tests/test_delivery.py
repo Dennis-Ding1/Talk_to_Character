@@ -1,0 +1,63 @@
+import pytest
+
+from app.context.delivery import realtime_delivery_note, tts_input
+from app.schemas import Character, CharacterState
+
+
+def _character(style: str, profile: str = "expressive") -> Character:
+    return Character(id="test", name="Test", speech_style=style, delivery_profile=profile)
+
+
+def test_tts_delivery_uses_allowlisted_character_and_state_controls():
+    character = _character("Fast, blunt speech with occasional burps.")
+    state = CharacterState(character_id="test", t=10, emotion="Anxious but determined")
+
+    result = tts_input("We need to go. Burp.", character, state)
+
+    assert result.startswith("<|emotion:fear|><|prosody:speed_fast|>")
+    assert "<|sfx:burping|>Burp" in result
+
+
+def test_tts_delivery_strips_untrusted_tags_and_marks_existing_laughter():
+    result = tts_input(
+        "<|style:shouting|>Haha, very funny.",
+        _character("Short, dry sentences."),
+    )
+
+    assert "style:shouting" not in result
+    assert result.startswith("<|emotion:amusement|><|sfx:laughter|>Haha")
+
+
+def test_tts_delivery_does_not_invent_sound_effects():
+    result = tts_input("That is a terrible idea.", _character("Fast speech with occasional burps."))
+
+    assert "sfx:" not in result
+    assert result.endswith("That is a terrible idea.")
+
+
+def test_tts_delivery_rejects_tag_only_input():
+    with pytest.raises(ValueError, match="empty"):
+        tts_input("<|style:shouting|>", _character("Fast speech."))
+
+
+def test_realtime_uses_words_instead_of_tts_control_tags():
+    state = CharacterState(character_id="test", t=10, emotion="Surprised and confused")
+    note = realtime_delivery_note(_character("Measured, quiet speech."), state)
+
+    assert "surprise" in note
+    assert "slower pace" in note
+    assert "<|" not in note
+
+
+def test_subtle_profile_does_not_turn_scene_mood_or_voice_prose_into_global_controls():
+    character = _character("Quick speech with understatement.", "subtle")
+    state = CharacterState(character_id="test", t=10, emotion="Frustrated, determined")
+
+    assert tts_input("I understand. Tell me what you mean.", character, state) == (
+        "I understand. Tell me what you mean."
+    )
+    assert tts_input("Wait, what?!", character, state).startswith("<|emotion:surprise|>")
+    note = realtime_delivery_note(character, state)
+    assert "natural" in note
+    assert "angry" not in note
+    assert "quick pace" not in note

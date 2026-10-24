@@ -8,7 +8,7 @@ Built on Boson AI's Higgs models for the Boson AI hackathon:
 | Higgs model | Role here |
 |---|---|
 | **Higgs Realtime** | The character's brain + voice: speech-to-speech, barge-in, tool calls, auto language |
-| **Higgs TTS 3** | Voice cloning from a 5–30 s clip of the character (`voice_<id>`) |
+| **Higgs TTS 3** | Cloned speech for Avatar, with character-aware emotion, style, prosody, and vocal SFX tags |
 | **Higgs Avatar** | Talking-head video from a still of the character (fMP4 stream) |
 
 ## How it works (short)

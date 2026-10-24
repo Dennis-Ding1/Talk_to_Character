@@ -42,6 +42,7 @@ where NAME matches a character's `id`, `name` or one of its `aliases`. Unattribu
     "bio": "One-paragraph background as of the START of the movie (no spoilers).",
     "personality": "Traits.",
     "speech_style": "Tone, catchphrases, dialect.",
+    "delivery_profile": "expressive",
     "relationships": { "other_id": "how they relate at the start" },
     "face_at_s": 754.2,
     "voice_clip": [812.0, 829.5],
@@ -54,6 +55,9 @@ where NAME matches a character's `id`, `name` or one of its `aliases`. Unattribu
   own `characters/<id>/face.png` and set `"face_image": "face.png"`.
 - **voice_clip**: 5–30 s where only this character speaks, ideally little music. The pipeline
   removes music with demucs, but cleaner input = better clone.
+- **delivery_profile**: optional `expressive` (default) maps scene mood and speech style to explicit
+  delivery controls. Use `subtle` for naturalistic characters; only clear cues in the current line
+  receive emotion tags, while the cloned voice and persona prompt carry the performance.
 - `voice_id` and `face_image` are filled in by the pipeline.
 
 ## Generated: knowledge/scenes.json

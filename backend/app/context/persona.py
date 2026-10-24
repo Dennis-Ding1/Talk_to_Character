@@ -1,6 +1,7 @@
 """Builds the Higgs Realtime `instructions` (system prompt) for a character at time t."""
 
 from app.config import get_settings
+from app.context.delivery import realtime_delivery_note
 from app.context.knowledge import MovieKnowledge
 from app.schemas import Scene
 
@@ -147,6 +148,7 @@ def build_instructions(kb: MovieKnowledge, character_id: str, t: float, knowledg
 Personality: {c.personality}
 What drives you: {c.core}
 Voice: {c.speech_style}
+{realtime_delivery_note(c, st)}
 
 # Where you are right now
 {moment} Speak from this exact moment in your life.
@@ -223,6 +225,7 @@ def _omniscient_instructions(kb: MovieKnowledge, character_id: str, t: float,
 Personality: {c.personality}
 What drives you: {c.core}
 Voice: {c.speech_style}
+{realtime_delivery_note(c, st)}
 
 # Where you are right now
 You are looking back on your whole life as the story told it, after its last chapter
