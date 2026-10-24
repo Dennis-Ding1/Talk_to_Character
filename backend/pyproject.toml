@@ -14,6 +14,9 @@ dependencies = [
   "pysrt>=1.1.2",
   "typer>=0.12",
   "websockets>=12.0",
+  # face recognition when the viewer clicks a face on the paused frame
+  "numpy>=1.26",
+  "opencv-python-headless>=4.10",
 ]
 
 [project.optional-dependencies]
