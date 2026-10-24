@@ -13,6 +13,8 @@ export interface Movie {
   title: string;
   language: string;
   duration_s?: number | null;
+  /** optional movie-level opt-in for text-driven TTS 3 avatar replies */
+  avatar_speech?: "realtime" | "tts3";
   /** image shown on the screen before playback starts */
   poster?: string | null;
   /** set for a demo cut: the full film it was cut from (all knowledge is mapped back to it) */

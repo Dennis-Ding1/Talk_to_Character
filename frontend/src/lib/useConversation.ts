@@ -41,6 +41,7 @@ interface Reply {
 
 interface Args {
   movieId: string;
+  avatarSpeech: "realtime" | "tts3";
   characterId: string;
   t: number;
   mode: OutputMode;
@@ -63,7 +64,7 @@ interface Args {
  * lip_sync (avatar): push-to-talk. Realtime writes the reply as text, the whole reply is
  * spoiler-checked, then the avatar speaks it.
  */
-export function useConversation({ movieId, characterId, t, mode, knowledge, onAvatar, onInterrupt }: Args) {
+export function useConversation({ movieId, avatarSpeech, characterId, t, mode, knowledge, onAvatar, onInterrupt }: Args) {
   const handsFree = mode === "voice_first";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Status>("idle");
@@ -268,9 +269,8 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
       );
     };
 
-    /** avatar mode: the reply is complete. If it passed, the avatar speaks this very audio (rendering
-     *  from audio starts ~2 s sooner than from text); if a sentence gave something away, the character
-     *  re-says the reply up to there plus the safe version, and that is what the avatar gets. */
+    /** avatar mode: after the full spoiler check, drive the avatar with Realtime audio by default
+     *  or with text for a movie opted into TTS 3. A spoiler triggers a safe rewrite first. */
     const finishAvatar = async (r: Reply, transcript: string) => {
       const results = (await Promise.all(r.checks)).sort((a, b) => a.index - b.index);
       if (dropped.current.has(r.id)) return;
@@ -297,6 +297,12 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
         upsert(r.id, "assistant", text);
         void api.saveTurn(movieId, characterId, knowledge, "assistant", text, t);
       };
+      if (!text || !onAvatarRef.current) return reveal();
+      if (avatarSpeech === "tts3") {
+        r.held = [];
+        onAvatarRef.current({ text }, reveal);
+        return;
+      }
       const parts = r.held.map(base64ToBytes);
       r.held = [];
       const pcm = new Uint8Array(parts.reduce((n, b) => n + b.length, 0));
@@ -305,7 +311,7 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
         pcm.set(b, at);
         at += b.length;
       }
-      if (!pcm.length || !onAvatarRef.current) return reveal();
+      if (!pcm.length) return reveal();
       onAvatarRef.current({ audio_b64: bytesToBase64(pcm16ToWav(pcm)) }, reveal);
     };
 
@@ -493,7 +499,7 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
       current.current = null;
       replies.current.clear();
     };
-  }, [movieId, characterId, t, mode, knowledge, handsFree, upsert, interrupt, recallNotes]);
+  }, [movieId, avatarSpeech, characterId, t, mode, knowledge, handsFree, upsert, interrupt, recallNotes]);
 
   /** Hands-free: turn the mic off / on. */
   const toggleMute = useCallback(async () => {

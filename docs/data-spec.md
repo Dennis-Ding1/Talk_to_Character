@@ -1,6 +1,8 @@
 # Data you need to provide (per movie)
 
 Folder: `data/movies/<movie_id>/`. See `data/movies/demo/` for a full example.
+Non-demo movie folders are git-ignored in this repo, including their JSON configuration. Share
+the folder separately or deliberately change the ignore rules before distributing a movie setup.
 
 ```
 <movie_id>/
@@ -21,6 +23,8 @@ Folder: `data/movies/<movie_id>/`. See `data/movies/demo/` for a full example.
 { "id": "mymovie", "title": "My Movie", "language": "zh", "video": "video.mp4", "subtitles": "subtitles.srt" }
 ```
 `language` = main spoken language (ISO-639-1), used for transcribing the voice clip.
+`avatar_speech` = optional `"tts3"` to generate Avatar speech from text with explicit delivery tags;
+the default `"realtime"` drives Avatar from Realtime audio. Voice mode always uses Realtime.
 
 ## subtitles.srt
 Standard SRT, UTF-8. **Speaker names help a lot**: start a line with `NAME:` / `NAME：` or `[NAME]`
@@ -43,6 +47,7 @@ where NAME matches a character's `id`, `name` or one of its `aliases`. Unattribu
     "personality": "Traits.",
     "speech_style": "Tone, catchphrases, dialect.",
     "delivery_profile": "expressive",
+    "tts_emotion": "enthusiasm",
     "relationships": { "other_id": "how they relate at the start" },
     "face_at_s": 754.2,
     "voice_clip": [812.0, 829.5],
@@ -59,6 +64,8 @@ where NAME matches a character's `id`, `name` or one of its `aliases`. Unattribu
   controls. Use `subtle` for naturalistic characters; only clear cues in the current line receive
   emotion tags, while the cloned voice and persona prompt carry the performance. When omitted, a
   project character preset is used when available, then `expressive`.
+- **tts_emotion**: optional allowlisted fallback TTS 3 emotion when neither the current scene nor
+  the spoken line indicates one. It does not change Realtime Voice mode.
 - `voice_id` and `face_image` are filled in by the pipeline.
 
 ## Generated: knowledge/scenes.json

@@ -23,6 +23,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 interface Props {
   movieId: string;
+  avatarSpeech: "realtime" | "tts3";
   character: Character;
   face: FaceCrop | null;
   t: number;
@@ -32,11 +33,12 @@ interface Props {
 }
 
 /** The front row: the character, stepped out of the frame, and the conversation. */
-export function ChatPanel({ movieId, character, face, t, mode, knowledge, onClose }: Props) {
+export function ChatPanel({ movieId, avatarSpeech, character, face, t, mode, knowledge, onClose }: Props) {
   const avatar = useRef<AvatarHandle>(null);
   const { messages, status, error, session, pending, handsFree, muted, toggleMute, startMic, stopMic, sendText } =
     useConversation({
     movieId,
+    avatarSpeech,
     characterId: character.id,
     t,
     mode,

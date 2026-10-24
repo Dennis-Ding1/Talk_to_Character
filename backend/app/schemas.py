@@ -27,6 +27,9 @@ class Movie(BaseModel):
     subtitles: str = "subtitles.srt"
     poster: str | None = None  # image shown before playback starts, file name inside the movie folder
     duration_s: float | None = None
+    # Avatar replies use Realtime audio by default. Opt a movie into text-driven Higgs TTS 3
+    # for explicit emotion/prosody tags; voice_first always stays on Realtime audio.
+    avatar_speech: Literal["realtime", "tts3"] = "realtime"
     # A demo cut of another movie: only the video differs; every time is mapped back to `source`,
     # so characters remember and know exactly what they would at that point of the full film.
     source: str | None = None
@@ -44,6 +47,7 @@ class Character(BaseModel):
     # subtle: preserve the cloned voice's natural performance; use tags only for cues in the reply.
     # None uses the project's character preset, then falls back to expressive.
     delivery_profile: Literal["expressive", "subtle"] | None = None
+    tts_emotion: str | None = None  # allowlisted fallback when neither the line nor scene has a mood
     core: str = ""  # deep drives and beliefs that hold across the whole story (must not spoil anything)
     relationships: dict[str, str] = {}  # other character id -> description (baseline, t=0)
     # Assets

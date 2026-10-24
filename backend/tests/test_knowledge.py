@@ -72,6 +72,37 @@ def test_session_endpoint_without_key(monkeypatch):
     assert "Bob" in body["session"]["instructions"]
 
 
+def test_avatar_tts3_is_movie_opt_in_and_voice_mode_stays_realtime(monkeypatch, tmp_path):
+    import json
+    from types import SimpleNamespace
+
+    from app.boson.client import BosonClient
+    from app.routers import session as session_router
+
+    monkeypatch.setattr(session_router, "BosonClient", lambda: BosonClient(api_key=""))
+    monkeypatch.setattr("app.context.knowledge.get_settings", lambda: SimpleNamespace(movies_dir=tmp_path))
+    for movie_id, avatar_speech in (("tts3_test", "tts3"), ("ordinary_test", None)):
+        folder = tmp_path / movie_id
+        folder.mkdir()
+        (folder / "movie.json").write_text(json.dumps({
+            "id": movie_id, "title": movie_id,
+            **({"avatar_speech": avatar_speech} if avatar_speech else {}),
+        }))
+        (folder / "characters.json").write_text(json.dumps([{"id": "hero", "name": "Hero"}]))
+
+    client = TestClient(app)
+    def modalities(movie_id, mode):
+        response = client.post("/api/session", json={
+            "movie_id": movie_id, "character_id": "hero", "t": 0, "mode": mode,
+        })
+        assert response.status_code == 200
+        return response.json()["session"]["output_modalities"]
+
+    assert modalities("tts3_test", "lip_sync") == ["text"]
+    assert modalities("tts3_test", "voice_first") == ["audio"]
+    assert modalities("ordinary_test", "lip_sync") == ["audio"]
+
+
 def test_split_scenes_gap():
     lines = [SubtitleLine(start=a, end=a + 2, text="x") for a in (0, 3, 30, 33)]
     scenes = split_scenes(lines, gap_s=8)

@@ -30,16 +30,17 @@ async def create_session(req: SessionRequest):
         transcription["language"] = req.user_lang
 
     voice_mode = req.mode == "voice_first"
+    avatar_tts3 = not voice_mode and load_movie(req.movie_id).movie.avatar_speech == "tts3"
     session = {
         "model": REALTIME_MODEL,
         "instructions": build_instructions(kb, req.character_id, t_src, req.knowledge),
         # voice_first: Realtime speaks directly with the cloned voice (first audio ~0.7 s after the
         # user stops talking); the browser spoiler-checks the reply transcript as it streams and makes
         # the character take back a sentence that reveals something.
-        # lip_sync: Realtime also speaks the reply in the cloned voice, but the browser holds the
-        # audio: once every sentence has passed the spoiler check, the avatar is driven by that audio
-        # (rendering starts ~2 s sooner from audio than from text, and runs faster than real time).
-        "output_modalities": ["audio"],
+        # lip_sync: by default, Realtime speaks and the browser holds its audio until the full
+        # reply passes the spoiler check. Opted-in movies instead request only text, then drive
+        # the avatar with Higgs TTS 3 so its emotion and prosody tags can take effect.
+        "output_modalities": ["text"] if avatar_tts3 else ["audio"],
         "audio": {
             "input": {
                 "format": {"type": "audio/pcm", "rate": 24000},

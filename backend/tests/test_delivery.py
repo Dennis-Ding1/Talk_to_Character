@@ -68,3 +68,21 @@ def test_oppenheimer_has_a_tracked_subtle_preset_when_movie_data_is_local_only()
     state = CharacterState(character_id="oppenheimer", t=10, emotion="Frustrated, determined")
 
     assert tts_input("I understand.", character, state) == "I understand."
+
+
+def test_character_default_emotion_is_allowlisted_and_yields_to_scene_mood():
+    rick = Character(
+        id="rick", name="Rick", speech_style="Fast speech.",
+        delivery_profile="expressive", tts_emotion="enthusiasm",
+    )
+    assert tts_input("Let's go.", rick).startswith("<|emotion:enthusiasm|><|prosody:speed_fast|>")
+    assert tts_input("Wait, what?!", rick).startswith("<|emotion:surprise|><|prosody:speed_fast|>")
+    afraid = CharacterState(character_id="rick", t=10, emotion="Scared and uncertain")
+    assert tts_input("Let's go.", rick, afraid).startswith("<|emotion:fear|><|prosody:speed_fast|>")
+    assert tts_input("Let's go.", _character("Fast speech.")) == "<|prosody:speed_fast|>Let's go."
+
+
+def test_character_default_emotion_cannot_inject_arbitrary_tts_tags():
+    character = Character(id="test", name="Test", tts_emotion="fear|><|style:shouting")
+
+    assert tts_input("Hello.", character) == "Hello."

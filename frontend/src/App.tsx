@@ -236,6 +236,7 @@ export default function App() {
           <ChatPanel
             key={`${talkingTo.id}@${pausedAt}/${knowledge}`}
             movieId={movie.id}
+            avatarSpeech={movie.avatar_speech ?? "realtime"}
             character={talkingTo}
             face={face}
             t={pausedAt}

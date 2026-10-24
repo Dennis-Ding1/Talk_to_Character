@@ -127,6 +127,8 @@ def _delivery_tags(character: Character, state: CharacterState | None, text: str
     # Subtle characters are not locked to a whole scene's narrative mood. They
     # can still react to an unmistakable cue in the actual line being spoken.
     emotion = _emotion(None if subtle else state, text)
+    if not emotion and not subtle and character.tts_emotion in _EMOTIONS:
+        emotion = character.tts_emotion
     if emotion:
         tags.append(f"<|emotion:{emotion}|>")
 
