@@ -536,6 +536,55 @@
   .limits .item .body { font-size: 27px; line-height: 1.4; }
   .limits .item .tc { font-size: 24px; color: var(--text-3); }
 
+
+  /* ======================= fill the page: larger type and spacing on the lighter slides ======================= */
+  /* 2 · idea */
+  .screen .hero { font-size: 124px; }
+  .screen .lede { font-size: 46px; max-width: 1400px; }
+  .screen .lived { width: 1400px; }
+  /* 3 · why not a normal chatbot */
+  #hook .duel .side { gap: 40px; padding-top: 40px; }
+  #hook .duel .side > .label { font-size: 26px; }
+  #hook .line-you { font-size: 36px; }
+  #hook .line-them { font-size: 54px; line-height: 1.28; }
+  #hook .intertitle { font-size: 30px; padding: 20px 12px 18px; }
+  /* 6 · small things */
+  .craft-slide .pair { flex: 1; }
+  .craft-slide .instance { gap: 36px; padding-top: 40px; }
+  .craft-slide .instance > .label { font-size: 26px; }
+  .craft-slide .instance .line-them { font-size: 52px; line-height: 1.28; }
+  .craft-slide .instance .line-you { font-size: 36px; }
+  .craft-slide .intertitle.listen { font-size: 30px; padding: 20px 12px 18px; }
+  .craft-slide .face-demo { grid-template-columns: 400px 1fr; gap: 40px; }
+  .craft-slide .mini { width: 400px; height: 400px; }
+  .craft-slide .mini .ai { font-size: 18px; }
+  .craft-slide .phase .intertitle { font-size: 28px; }
+  .craft-slide .steps3 p { font-size: 22px; }
+  /* 8 · two performances */
+  .perf-slide .perf { gap: 20px; padding-top: 36px; }
+  .perf-slide .perf > .label:first-child { font-size: 26px; }
+  .perf-slide .perf h3 { font-size: 60px; }
+  .perf-slide .pairs .tc { font-size: 30px; padding: 18px 0; }
+  .perf-slide .perf-close { margin-top: auto; }
+  /* 9 · Higgs models */
+  .credits-slide .credit { padding: 46px 0; }
+  .credits-slide .credit .name { font-size: 58px; }
+  .credits-slide .credit .body { font-size: 34px; }
+  .credits-slide .credit .label { font-size: 24px; }
+  /* 12 · emotion tags */
+  .trade-slide .path h3 { font-size: 40px; }
+  .trade-slide .path .body { font-size: 28px; }
+  .trade-slide .pair-row { padding: 26px 0; }
+  .trade-slide .pair-row .body { font-size: 28px; }
+  .trade-slide .pair-row .duo { gap: 12px; }
+  .trade-slide .pair-row .bar { height: 32px; }
+  .trade-slide .pair-row .bar .tc { font-size: 26px; }
+  /* 13 · limits */
+  .limits-slide .limits { max-width: none; }
+  .limits-slide .limits .item { padding: 34px 0; }
+  .limits-slide .limits .item h3 { font-size: 40px; }
+  .limits-slide .limits .item .body { font-size: 30px; }
+
   /* ---------- presenter chrome, outside the stage ---------- */
   #notes { position: fixed; left: 0; right: 0; bottom: 0; max-height: 36vh; overflow: auto; z-index: 10; display: none;
     background: rgba(12, 3, 6, 0.95); border-top: 1px solid var(--line-strong); padding: 16px 28px 20px; color: var(--text-2);
@@ -803,7 +852,7 @@
 </section>
 
 <!-- ============ 11 · craft ============ -->
-<section class="slide" data-steps="2" data-time="20" data-section="The experience">
+<section class="slide craft-slide" data-steps="2" data-time="20" data-section="The experience">
   <h2 class="title words">Small things that make it feel live</h2>
   <div class="pair">
     <div class="instance barge">
@@ -887,7 +936,7 @@ Come back to the deck at about 5:40.</aside>
 </section>
 
 <!-- ============ 05 · credits ============ -->
-<section class="slide" data-time="20" data-section="Built on Higgs">
+<section class="slide credits-slide" data-time="20" data-section="Built on Higgs">
   <h2 class="title words">Starring three Higgs models</h2>
   <div class="credits">
     <div class="credit rise" style="--d:0.5s"><p class="label">The mind &amp; voice</p><p class="name">Higgs Realtime</p><p class="body">Speech to speech · barge-in · any language</p></div>
@@ -943,7 +992,7 @@ Come back to the deck at about 5:40.</aside>
 </section>
 
 <!-- ============ 10 · tradeoff ============ -->
-<section class="slide" data-time="25" data-section="Under the hood">
+<section class="slide trade-slide" data-time="25" data-section="Under the hood">
   <h2 class="title words">Emotion tags cost about two seconds</h2>
   <div class="paths rise" style="--d:0.3s">
     <div class="path rt"><h3><i></i>Realtime audio</h3><p class="body">The default. Realtime speaks the reply, and its audio drives the face. Emotion comes only from how the persona is written.</p></div>
@@ -961,7 +1010,7 @@ Come back to the deck at about 5:40.</aside>
 </section>
 
 <!-- ============ 12 · limits ============ -->
-<section class="slide" data-time="25" data-section="Where it stands">
+<section class="slide limits-slide" data-time="25" data-section="Where it stands">
   <h2 class="title words">Limits</h2>
   <div class="limits">
     <div class="item rise" style="--d:0.35s"><p class="tc">1</p><div><h3>Lip-sync takes time, and emotion takes more</h3><p class="body">The face starts 3–6 s after the reply is written, and TTS 3 emotion tags add 1.5–2.3 s. Realtime audio is the fast fallback, but it can’t take emotion tags.</p></div></div>
