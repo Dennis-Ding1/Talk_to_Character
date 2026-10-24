@@ -15,7 +15,7 @@ def tokenize(text: str) -> list[str]:
 
 
 def scene_text(s: Scene) -> str:
-    return " ".join([s.summary, *s.key_events, *(ln.text for ln in s.lines)])
+    return " ".join([s.summary, *s.key_events, *(ln.text for ln in s.lines), *(b.text for b in s.beats)])
 
 
 def search_scenes(scenes: list[Scene], query: str, k: int = 3) -> list[Scene]:

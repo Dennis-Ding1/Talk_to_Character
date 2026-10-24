@@ -17,6 +17,16 @@ class MovieNotFound(KeyError):
     pass
 
 
+def parse_time(v) -> float:
+    """Seconds from a number or 'h:mm:ss.s' / 'm:ss.s'."""
+    if isinstance(v, (int, float)):
+        return float(v)
+    t = 0.0
+    for part in str(v).split(":"):
+        t = t * 60 + float(part)
+    return t
+
+
 def _read_json(path: Path, default):
     if not path.exists():
         return default
@@ -38,6 +48,7 @@ class MovieKnowledge:
             scenes = self._fallback_scenes()
         self.scenes: list[Scene] = sorted((Scene(**s) for s in scenes), key=lambda s: s.start)
         self.scene_by_id = {s.id: s for s in self.scenes}
+        self.anchor_flash_forwards = False  # see now_year()
         self.scene_order = {s.id: i for i, s in enumerate(self.scenes)}
         # best face crops per scene and character (preprocess `faceindex`), cache/looks/<id>.jpg
         self.looks: dict[str, list[dict]] = {}
@@ -47,6 +58,32 @@ class MovieKnowledge:
             (CharacterState(**s) for s in _read_json(folder / "knowledge" / "character_states.json", [])),
             key=lambda s: s.t,
         )
+        self._apply_fixes(_read_json(folder / "knowledge" / "fixes.json", {}))
+        # time-anchored private thoughts inside scenes (knowledge/moments.json), sorted by time
+        self.moments: list[dict] = sorted(
+            ({**m, "t": parse_time(m["t"])} for m in _read_json(folder / "knowledge" / "moments.json", [])),
+            key=lambda m: m["t"])
+
+    def _apply_fixes(self, fixes: dict) -> None:
+        """Hand corrections (knowledge/fixes.json): who says a subtitle line, debris beats to drop."""
+        if not fixes:
+            return
+        speakers = [(parse_time(f["t"]), f["speaker"]) for f in fixes.get("line_speakers", [])]
+        drops = fixes.get("drop_beats", [])
+        for s in self.scenes:
+            for ln in s.lines:
+                for t, spk in speakers:
+                    if abs(ln.start - t) <= 0.15:
+                        ln.speaker = spk
+                        if spk in self.characters and not ln.vo and spk not in s.characters_present:
+                            s.characters_present.append(spk)
+            if drops:
+                s.beats = [b for b in s.beats if not any(d in b.text for d in drops)]
+
+    def moments_for(self, character_id: str, t: float, n: int = 3, window_s: float = 1200) -> list[dict]:
+        """The character's last few private moment-thoughts up to t (never after: no spoilers)."""
+        mine = [m for m in self.moments if m["character_id"] == character_id and t - window_s <= m["t"] <= t]
+        return mine[-n:]
 
     def _fallback_scenes(self) -> list[dict]:
         """No preprocessing yet: one scene per subtitle line, presence = speaker."""
@@ -90,16 +127,18 @@ class MovieKnowledge:
     def now_year(self, t: float) -> float | None:
         """The story moment the character speaks from (None for linear films).
 
-        Normally the story year of the scene on screen. But if that scene is a frame story *ahead*
-        of what the viewer has seen (a 1954 hearing while the flashbacks have only reached 1943),
-        the character is anchored at the viewer's frontier instead: a 1954 Oppenheimer knows the
-        bomb worked and models can't reliably keep that secret, so we talk to the 1943 one.
+        The story year of the scene on screen. Optionally (anchor_flash_forwards), if that scene is
+        a frame story *ahead* of what the viewer has seen (a 1954 hearing while the flashbacks have
+        only reached 1943), the character is anchored at the viewer's frontier instead. Off by default
+        now: the spoiler guard (app/context/guard.py) checks every sentence before it is spoken, and
+        anchoring made e.g. the 1959 Strauss at his Senate defeat talk like his 1954 self.
         """
         s = self.current_scene(t)
         if s is None or s.story_year is None:
             return None
         frontier = self.viewer_frontier(t)
-        if s.thread not in (None, "past") and (frontier is None or s.story_year > frontier + 1.0):
+        if self.anchor_flash_forwards and s.thread not in (None, "past") and (
+                frontier is None or s.story_year > frontier + 1.0):
             if frontier is not None:
                 return frontier
             # opening flash-forward, nothing of the main story seen yet: speak from where the main
@@ -143,6 +182,7 @@ class MovieKnowledge:
                             "summary": "",
                             "key_events": [],
                             "lines": [ln for ln in s.lines if ln.start < t],
+                            "beats": [b for b in s.beats if b.t < t],  # on-screen action so far
                         }
                     )
                 )
@@ -231,9 +271,18 @@ class MovieKnowledge:
             lines.extend(ln for ln in s.lines if t - window_s <= ln.start < t)
         return lines
 
+    def recent_events(self, character_id: str, t: float, window_s: float) -> list[tuple[float, str, str | None]]:
+        """What was said AND what happened on screen just before t, in time order:
+        (time, text, speaker id or None for an action beat)."""
+        out: list[tuple[float, str, str | None]] = []
+        for s in self.known_scenes(character_id, t):
+            out.extend((ln.start, ln.text, ln.speaker or "?") for ln in s.lines if t - window_s <= ln.start < t)
+            out.extend((b.t, b.text, None) for b in s.beats if t - window_s <= b.t < t)
+        return sorted(out, key=lambda e: e[0])
+
 
 _DATA_FILES = ("movie.json", "characters.json", "knowledge/scenes.json", "knowledge/character_states.json",
-               "knowledge/looks.json")
+               "knowledge/looks.json", "knowledge/fixes.json", "knowledge/moments.json")
 
 
 def _signature(folder: Path) -> tuple:
@@ -251,6 +300,28 @@ def load_movie(movie_id: str) -> MovieKnowledge:
     if not folder.is_dir():
         raise MovieNotFound(movie_id)
     return _load_cached(folder, _signature(folder))
+
+
+def to_source_time(movie: Movie, t: float) -> float:
+    """Demo-cut time -> time in the full source film."""
+    segs = movie.segments
+    if not segs:
+        return t
+    for s in segs:
+        if s.start <= t < s.start + s.duration:
+            return min(s.src_start + (t - s.start), s.src_end - 0.01)
+    last = segs[-1] if t >= segs[-1].start else segs[0]
+    return last.src_end - 0.01 if t >= last.start else last.src_start
+
+
+def resolve(movie_id: str, t: float | None = None) -> tuple["MovieKnowledge", float | None]:
+    """The knowledge to use for a movie id (+ the matching time). For a demo cut this is the full
+    source film at the mapped time, so a pause in the cut behaves exactly like the same moment in the
+    full film (memories, faces, spoiler limits). The demo's own folder only provides the video."""
+    kb = load_movie(movie_id)
+    if not kb.movie.source:
+        return kb, t
+    return load_movie(kb.movie.source), (to_source_time(kb.movie, t) if t is not None else None)
 
 
 def list_movies() -> list[Movie]:

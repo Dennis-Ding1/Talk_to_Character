@@ -25,7 +25,7 @@ export default function App() {
       .movies()
       .then((ms) => {
         setMovies(ms);
-        setMovie(ms[0] ?? null);
+        setMovie(ms.find((m) => m.segments?.length) ?? ms[0] ?? null); // demo cut first
       })
       .catch((e) => setErr(`Backend not reachable: ${e}`));
   }, []);
@@ -90,6 +90,26 @@ export default function App() {
       </header>
 
       {err && <div className="error">{err}</div>}
+
+      {movie?.segments && movie.segments.length > 0 && (
+        <nav className="chapters">
+          {movie.segments.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => {
+                const v = videoRef.current;
+                if (!v) return;
+                setPausedAt(null);
+                setTalkingTo(null);
+                v.currentTime = s.start + 0.6; // just past the fade-in
+                void v.play();
+              }}
+            >
+              <span>{s.emoji}</span> {s.title}
+            </button>
+          ))}
+        </nav>
+      )}
 
       <main className={talkingTo ? "with-chat" : ""}>
         <div className="stage">

@@ -34,6 +34,9 @@ class ScriptScene:
     timeline: str  # "colour" | "bw"
     lines: list[ScriptLine] = field(default_factory=list)
     action: list[str] = field(default_factory=list)
+    # the scene in reading order: ("action", paragraph text) and ("line", index into `lines`).
+    # Lets us time each action paragraph between the dialogue lines around it.
+    elements: list[tuple[str, object]] = field(default_factory=list)
 
 
 def pdf_to_text(pdf: Path) -> str:
@@ -61,23 +64,34 @@ def parse_screenplay(text: str) -> list[ScriptScene]:
     speaker: str | None = None
     vo = False
     buf: list[str] = []
+    para: list[str] = []
 
     def flush():
         nonlocal speaker, buf
         if cur is not None and speaker and buf:
             cur.lines.append(ScriptLine(speaker, " ".join(buf), vo))
+            cur.elements.append(("line", len(cur.lines) - 1))
         speaker, buf = None, []
+
+    def flush_para():
+        nonlocal para
+        if cur is not None and para:
+            cur.elements.append(("action", " ".join(para)))
+        para = []
 
     for raw in text.splitlines():
         line = raw.rstrip()
         if PAGE_HEADER_RE.search(line) or NOISE_RE.match(line):
             continue
         if not line.strip():
-            continue  # blank lines can occur inside a speech; indentation decides instead
+            if speaker is None:
+                flush_para()  # a blank line ends an action paragraph (inside speech it means nothing)
+            continue
 
         m = SLUG_RE.match(line)
         if m:
             flush()
+            flush_para()
             slug = re.sub(r"\s+", " ", m.group(1)).strip()
             timeline = _timeline_from_slug(slug, timeline)
             cur = ScriptScene(index=len(scenes), slug=slug, timeline=timeline)
@@ -90,6 +104,7 @@ def parse_screenplay(text: str) -> list[ScriptScene]:
         c = CUE_RE.match(line)
         if c and c.group("name").strip() not in NOT_NAMES and not line.strip().endswith(":"):
             flush()
+            flush_para()
             speaker = c.group("name").strip()
             vo = "V.O." in c.group("ext") or "O.S." in c.group("ext")
             continue
@@ -102,7 +117,9 @@ def parse_screenplay(text: str) -> list[ScriptScene]:
         else:
             flush()
             cur.action.append(line.strip())
+            para.append(line.strip())
     flush()
+    flush_para()
     return scenes
 
 

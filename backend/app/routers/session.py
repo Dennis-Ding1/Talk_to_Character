@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException
 
 from app import memory
 from app.boson.client import REALTIME_MODEL, REALTIME_URL, STT_MODEL, BosonClient, BosonError
-from app.context.knowledge import MovieNotFound, load_movie
+from app.config import get_settings
+from app.context.knowledge import MovieNotFound, load_movie, resolve
 from pydantic import BaseModel
 
 from app.context.persona import TOOLS, build_instructions, question_notes, turn_note
@@ -19,7 +20,7 @@ async def create_session(req: SessionRequest):
     an ephemeral key + the first `session.update` payload (already spoiler-filtered at t).
     """
     try:
-        kb = load_movie(req.movie_id)
+        kb, t_src = resolve(req.movie_id, req.t)  # demo cut -> full film at the mapped time
         character = kb.character(req.character_id)
     except (MovieNotFound, KeyError):
         raise HTTPException(404, "movie or character not found")
@@ -30,7 +31,7 @@ async def create_session(req: SessionRequest):
 
     session = {
         "model": REALTIME_MODEL,
-        "instructions": build_instructions(kb, req.character_id, req.t, req.knowledge),
+        "instructions": build_instructions(kb, req.character_id, t_src, req.knowledge),
         # Realtime only thinks (text). Each sentence is spoiler-checked and then spoken with the
         # cloned voice by /api/speak (Higgs TTS), or by the avatar endpoint in lip_sync mode.
         "output_modalities": ["text"],
@@ -48,8 +49,7 @@ async def create_session(req: SessionRequest):
                 "voice": character.voice_id or "default",
             },
         },
-        "tools": TOOLS,
-        "tool_choice": "auto",
+        **({"tools": TOOLS, "tool_choice": "auto"} if get_settings().realtime_tools else {"tools": []}),
         "temperature": 0.7,
     }
 
@@ -70,9 +70,9 @@ async def create_session(req: SessionRequest):
         session=session,
         character=character,
         history=history,
-        turn_note=turn_note(kb, req.t, req.knowledge),
-        as_of_year=None if omni else kb.now_year(req.t),
-        anchored=False if omni else kb.is_anchored(req.t),
+        turn_note=turn_note(kb, t_src, req.knowledge),
+        as_of_year=None if omni else kb.now_year(t_src),
+        anchored=False if omni else kb.is_anchored(t_src),
         knowledge=req.knowledge,
     )
 
@@ -89,11 +89,11 @@ class _NotesRequest(BaseModel):
 def get_question_notes(req: _NotesRequest):
     """Context to attach to one user question: relevant memories + "you've never met X" notes."""
     try:
-        kb = load_movie(req.movie_id)
+        kb, t_src = resolve(req.movie_id, req.t)
         kb.character(req.character_id)
     except (MovieNotFound, KeyError):
         raise HTTPException(404, "movie or character not found")
-    return {"notes": question_notes(kb, req.character_id, req.t, req.question, req.knowledge)}
+    return {"notes": question_notes(kb, req.character_id, t_src, req.question, req.knowledge)}
 
 
 @router.post("/memory/{movie_id}/{character_id}")

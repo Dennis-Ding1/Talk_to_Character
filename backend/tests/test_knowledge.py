@@ -67,7 +67,8 @@ def test_session_endpoint_without_key(monkeypatch):
     r = client.post("/api/session", json={"movie_id": "demo", "character_id": "bob", "t": 50})
     assert r.status_code == 200
     body = r.json()
-    assert body["session"]["model"] == "higgs-realtime"
+    from app.boson.client import REALTIME_MODEL
+    assert body["session"]["model"] == REALTIME_MODEL
     assert "Bob" in body["session"]["instructions"]
 
 

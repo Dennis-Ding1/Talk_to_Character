@@ -42,7 +42,9 @@ def kb(tmp_path):
         {"id": "party_opp_late", "scene_id": "party", "character_id": "opp", "t": 290, "q": 0.9},
         {"id": "party_kitty", "scene_id": "party", "character_id": "kitty", "t": 230, "q": 0.8},
     ]))
-    return MovieKnowledge(tmp_path)
+    kb = MovieKnowledge(tmp_path)
+    kb.anchor_flash_forwards = True  # these tests cover the anchoring rule itself
+    return kb
 
 
 def ids(scenes):
@@ -127,3 +129,17 @@ def test_best_look_is_from_this_scene_and_never_after_the_pause(kb):
 
 def test_picker_lists_faces_seen_in_this_scene_first(kb):
     assert [c.id for c in kb.characters_at(240)][:2] == ["kitty", "opp"]  # by best shot quality
+
+
+def test_demo_cut_maps_back_to_source_time():
+    from app.context.knowledge import to_source_time
+    from app.schemas import DemoSegment, Movie
+
+    m = Movie(id="cut", title="cut", source="full", segments=[
+        DemoSegment(key="a", title="A", src_start=100, src_end=160, start=0, duration=60),
+        DemoSegment(key="b", title="B", src_start=900, src_end=930, start=60, duration=30),
+    ])
+    assert to_source_time(m, 10) == 110
+    assert to_source_time(m, 60) == 900          # first frame of the second clip
+    assert to_source_time(m, 75) == 915
+    assert abs(to_source_time(m, 95) - 929.99) < 1e-6  # past the end: clamp to the last clip

@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from app.boson.client import TTS_MODEL, BosonClient
 from app.context.guard import check_sentence
-from app.context.knowledge import MovieNotFound, load_movie
+from app.context.knowledge import MovieNotFound, resolve
 from app.schemas import KnowledgeMode
 
 router = APIRouter(prefix="/api", tags=["speech"])
@@ -33,8 +33,10 @@ class SpeakRequest(BaseModel):
 
 
 def _load(req: SpeakRequest):
+    """Knowledge for the request; for a demo cut, req.t is mapped to the full film in place."""
     try:
-        kb = load_movie(req.movie_id)
+        kb, t_src = resolve(req.movie_id, req.t)
+        req.t = t_src
         return kb, kb.character(req.character_id)
     except (MovieNotFound, KeyError):
         raise HTTPException(404, "movie or character not found")

@@ -110,3 +110,164 @@ def build_states(scenes: list[Scene], cast: list[Character],
             ))
     print(f"  {len(states)} character states")
     return states
+
+
+INNER_SYSTEM = """You write a film character's PRIVATE inner notes about one scene, in the FIRST PERSON,
+as they would honestly think it to themselves. Use what happens ON SCREEN (the actions) as much as
+the dialogue: actions often carry the real story (a poisoned apple, a look, a lie).
+Return JSON only:
+{"did": "what I did in this scene, concretely (1-2 sentences)",
+ "why": "my real reasons and motives, including ugly or petty ones (1-3 sentences)",
+ "felt": "what I felt, in plain words (1 sentence)",
+ "hiding": "what I'd rather nobody knew or I won't admit out loud ('' if nothing)"}
+Think about cause and effect like a novelist: what in this scene (or in my earlier notes) provoked
+me, and how does that explain what I did? Connect my actions to earlier ones (e.g. if I poisoned
+something earlier and someone is about to eat it, THAT is why I react). For shocking actions give the
+real psychology: humiliation, resentment, envy, fear, guilt, desire, panic.
+Be specific to this scene and consistent with my drives and my earlier notes.
+Use only the given text; nothing from later in the story. Plain words, no grand phrases."""
+
+
+def _beats_text(s: Scene, limit: int = 2500) -> str:
+    return "\n".join(f"- {b.text}" for b in s.beats)[:limit]
+
+
+def build_inner_notes(scenes: list[Scene], cast: list[Character], states: list[CharacterState],
+                      only: set[str], workers: int = 4) -> list[CharacterState]:
+    """Adds did/why/felt/hiding to the per-scene states of the characters in `only` (creating a state
+    if a scene had none). Each character's notes are written in screen order and see that character's
+    own earlier notes (so "why did I grab the apple" can follow from "I poisoned it"); characters run in
+    parallel. Context = this scene + the character's earlier scenes, so nothing comes from what the
+    viewer hasn't seen yet."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    names = {c.id: c.name for c in cast}
+    by_key = {(st.character_id, st.scene_id): st for st in states}
+    by_screen = sorted(scenes, key=lambda x: x.start)
+    nl = "\n"
+
+    def notes_for(c: Character) -> int:
+        done = 0
+        mine = [x for x in by_screen if c.id in x.characters_present]
+        for s in mine:
+            st = by_key.get((c.id, s.id))
+            if st and st.why:
+                continue  # resumable
+            if not (s.summary or s.beats or any(ln.speaker == c.id for ln in s.lines)):
+                continue
+            before = [p for p in mine if p.start < s.start and p.summary and
+                      (s.story_year is None or p.story_year is None or p.story_year <= s.story_year)]
+            so_far = nl.join(f"- ({int(p.story_year) if p.story_year else '?'}) {p.summary}" for p in before[-5:])
+            prev_notes = []
+            for p in before[-4:]:
+                ps = by_key.get((c.id, p.id))
+                if ps and ps.did:
+                    prev_notes.append(f"- ({p.slug.split('--')[0].strip()}) I did: {ps.did} Why: {ps.why}")
+            dialogue = nl.join(f"{names.get(ln.speaker or '', ln.speaker or '?')}"
+                               f"{' (voice-over)' if ln.vo else ''}: {ln.text}" for ln in s.lines)[:3000]
+            user = (f"Character: {c.name} ({c.id}){nl}Profile: {c.bio} Personality: {c.personality}{nl}"
+                    f"Drives: {c.core}{nl}"
+                    f"What I've been through recently:{nl}{so_far or '- (nothing yet)'}{nl}"
+                    f"My own private notes from those scenes:{nl}{nl.join(prev_notes) or '- (none)'}{nl}{nl}"
+                    f"THIS SCENE ({int(s.story_year) if s.story_year else '?'}; {s.slug}){nl}"
+                    f"Summary: {s.summary}{nl}What happens on screen:{nl}{_beats_text(s) or '- (no action notes)'}{nl}"
+                    f"Dialogue:{nl}{dialogue}{nl}{nl}Write {c.name}'s private inner notes about this scene.")
+            try:
+                out = chat_json(INNER_SYSTEM, user)
+            except Exception as e:  # noqa: BLE001
+                print(f"  inner {c.id}@{s.id} failed: {e}")
+                continue
+            if st is None:
+                st = CharacterState(character_id=c.id, t=s.end, scene_id=s.id)
+                states.append(st)
+                by_key[(c.id, s.id)] = st
+            st.did, st.why = str(out.get("did", "")), str(out.get("why", ""))
+            st.felt, st.hiding = str(out.get("felt", "")), str(out.get("hiding", ""))
+            done += 1
+            if done % 20 == 0:
+                print(f"  {c.id}: {done} notes")
+        print(f"  {c.id}: done ({done} new)")
+        return done
+
+    targets = [c for c in cast if c.id in only]
+    with ThreadPoolExecutor(max(1, min(workers, len(targets)))) as ex:
+        list(ex.map(notes_for, targets))
+    return states
+
+
+MOMENT_SYSTEM = """You write what a film character is thinking AT ONE EXACT MOMENT inside a scene, in the
+FIRST PERSON, as private thoughts. You get everything that has happened in the scene UP TO this moment
+(on-screen actions and dialogue) and nothing after. Explain the WHY of what I just did or am about to
+react to, connecting it to my earlier actions and feelings (e.g. "that's the apple I poisoned last
+night — if Bohr bites it he dies"). Include the ugly or petty parts if they are true.
+Return JSON only: {"thought": "2-4 plain sentences, first person, present tense"}
+Use only the given text; nothing from later. Plain words, no grand phrases."""
+
+
+def build_moment_notes(scenes: list[Scene], cast: list[Character], states: list[CharacterState],
+                       only: set[str], ranges: list[tuple[float, float]], workers: int = 4,
+                       every_s: float = 30.0) -> list[dict]:
+    """Time-anchored thoughts inside scenes, so a pause in the middle of a scene still has the
+    character's inner life up to that second (a whole-scene note would spoil its ending).
+    Checkpoints: each on-screen action beat, plus one every `every_s` seconds of dialogue.
+    Only for scenes overlapping `ranges` (e.g. the clips of a demo cut)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    nl = "\n"
+    names = {c.id: c.name for c in cast}
+    by_key = {(st.character_id, st.scene_id): st for st in states}
+    by_screen = sorted(scenes, key=lambda x: x.start)
+    in_range = [s for s in by_screen if any(s.start < b and s.end > a for a, b in ranges)]
+
+    jobs = []
+    for s in in_range:
+        times = sorted({round(b.t, 1) for b in s.beats})
+        k = s.start + every_s
+        while k < s.end:
+            times.append(round(k, 1))
+            k += every_s
+        times = sorted(times)
+        dedup: list[float] = []
+        for x in times:
+            if not dedup or x - dedup[-1] >= 4.0:
+                dedup.append(x)
+        for c in cast:
+            if c.id not in only or c.id not in s.characters_present:
+                continue
+            for t in dedup:
+                jobs.append((c, s, t))
+
+    def run(job):
+        c, s, t = job
+        mine = [p for p in by_screen if c.id in p.characters_present and p.start < s.start and p.summary]
+        if s.story_year is not None:
+            mine = [p for p in mine if p.story_year is None or p.story_year <= s.story_year]
+        earlier = []
+        for p in mine[-4:]:
+            st = by_key.get((c.id, p.id))
+            line = f"- ({p.slug.split('--')[0].strip()}) {p.summary}"
+            if st and st.did:
+                line += f" | I did: {st.did} Why: {st.why}"
+            earlier.append(line)
+        so_far = sorted(
+            [(b.t, f"[on screen] {b.text}") for b in s.beats if b.t <= t + 0.01]
+            + [(ln.start, f"{names.get(ln.speaker or '', ln.speaker or '?')}: {ln.text}") for ln in s.lines
+               if ln.start <= t + 0.01])
+        scene_so_far = nl.join(x for _, x in so_far)[-3500:]
+        user = (f"Character: {c.name} ({c.id}){nl}Profile: {c.bio} Personality: {c.personality}{nl}"
+                f"Drives: {c.core}{nl}"
+                f"My earlier scenes and private notes:{nl}{nl.join(earlier) or '- (none)'}{nl}{nl}"
+                f"THIS SCENE ({int(s.story_year) if s.story_year else '?'}; {s.slug}), "
+                f"everything up to this moment:{nl}{scene_so_far}{nl}{nl}"
+                f"What is {c.name} thinking right now, at this exact moment?")
+        try:
+            out = chat_json(MOMENT_SYSTEM, user)
+            return {"character_id": c.id, "scene_id": s.id, "t": t, "text": str(out.get("thought", "")).strip()}
+        except Exception as e:  # noqa: BLE001
+            print(f"  moment {c.id}@{s.id}/{t} failed: {e}")
+            return None
+
+    print(f"  {len(jobs)} moment notes to write")
+    with ThreadPoolExecutor(workers) as ex:
+        notes = [n for n in ex.map(run, jobs) if n and n["text"]]
+    return sorted(notes, key=lambda n: (n["character_id"], n["t"]))

@@ -3,7 +3,7 @@ we answer from t-filtered knowledge only, so tools can't leak spoilers either.""
 
 from fastapi import APIRouter, HTTPException
 
-from app.context.knowledge import MovieNotFound, load_movie
+from app.context.knowledge import MovieNotFound, resolve
 from app.context.persona import fmt_scene
 from app.context.retrieval import search_scenes
 from app.schemas import ToolCall
@@ -14,7 +14,8 @@ router = APIRouter(prefix="/api/tools", tags=["tools"])
 @router.post("/{name}")
 def run_tool(name: str, call: ToolCall) -> dict:
     try:
-        kb = load_movie(call.movie_id)
+        kb, t_src = resolve(call.movie_id, call.t)  # demo cut -> full film time
+        call = call.model_copy(update={"t": t_src})
         kb.character(call.character_id)
     except (MovieNotFound, KeyError):
         raise HTTPException(404, "movie or character not found")

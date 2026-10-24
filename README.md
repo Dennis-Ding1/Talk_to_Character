@@ -53,11 +53,21 @@ The `demo` movie ships with subtitles + hand-written knowledge (no video). Drop 
 
 ```bash
 cd backend
-python -m preprocess.cli scenes    <movie_id>   # subtitles -> knowledge/scenes.json
-python -m preprocess.cli summarize <movie_id>   # local LLM -> summaries + character_states.json
-python -m preprocess.cli faces     <movie_id>   # face_at_s -> characters/<id>/face.png
-python -m preprocess.cli voices    <movie_id>   # voice_clip -> cloned voice_id
+# with a screenplay (best): speakers, scenes, timed on-screen action beats, story years
+python -m preprocess.cli screenplay <movie_id> --first-person <id>  # screenplay.pdf + subtitles.srt
+# without one: python -m preprocess.cli scenes <movie_id>          # subtitles only
+python -m preprocess.cli summarize <movie_id>    # LLM -> scene summaries + per-scene character states
+python -m preprocess.cli inner <movie_id> --only a,b,c   # private inner notes: did / why / felt / hiding
+python -m preprocess.cli faceindex <movie_id>    # scan faces, recognise characters, best looks per scene
+python -m preprocess.cli voices <movie_id>       # clone each character's voice (auto-picks a clean line)
 ```
+`LLM_BACKEND` in `.env` picks the LLM: `higgs_text` (Boson, no install) or `ollama` (local, free).
+
+### Demo cuts
+A short cut of a film for presenting (`data/movies/oppenheimer_demo/`): its `movie.json` has
+`"source": "oppenheimer"` and `segments` (demo time -> source time). Only the video differs; every
+request is mapped back to the full film, so a pause in the cut behaves exactly like the same moment
+in the full film. The player shows the segments as chapter buttons.
 
 ## Repo layout
 

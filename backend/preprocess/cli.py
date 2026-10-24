@@ -151,6 +151,51 @@ def summarize(
 
 
 @app.command()
+def inner(movie_id: str, only: str = typer.Option(..., help="comma-separated character ids"), workers: int = 4):
+    """Private inner notes (did / why / felt / hiding) per scene for the given characters.
+    Needs `screenplay` (beats) and `summarize` (summaries) first."""
+    from preprocess.summarize import build_inner_notes
+
+    folder, movie, cast = _load(movie_id)
+    scs = [Scene(**s) for s in json.loads((folder / "knowledge" / "scenes.json").read_text(encoding="utf-8"))]
+    states_path = folder / "knowledge" / "character_states.json"
+    states = [CharacterState(**s) for s in json.loads(states_path.read_text(encoding="utf-8"))]         if states_path.exists() else []
+    states = build_inner_notes(scs, cast, states, set(only.split(",")), workers=workers)
+    _save_json(states_path, [s.model_dump() for s in states])
+    typer.echo(f"saved {sum(1 for s in states if s.why)} inner notes")
+
+
+@app.command()
+def moments(
+    movie_id: str,
+    only: str = typer.Option(..., help="comma-separated character ids"),
+    demo: str = typer.Option(None, help="a demo cut of this movie: write notes for its clips only"),
+    ranges: str = typer.Option(None, help="or source-time ranges, e.g. 235-541,1914-2011"),
+    workers: int = 4,
+):
+    """Time-anchored inner thoughts inside scenes (for pauses mid-scene) -> knowledge/moments.json."""
+    from preprocess.summarize import build_moment_notes
+
+    folder, movie, cast = _load(movie_id)
+    if demo:
+        segs = json.loads((get_settings().movies_dir / demo / "movie.json").read_text(encoding="utf-8"))["segments"]
+        spans = [(s["src_start"], s["src_end"]) for s in segs]
+    elif ranges:
+        spans = [tuple(float(x) for x in r.split("-")) for r in ranges.split(",")]
+    else:
+        raise typer.BadParameter("give --demo or --ranges")
+    scs = [Scene(**s) for s in json.loads((folder / "knowledge" / "scenes.json").read_text(encoding="utf-8"))]
+    states_path = folder / "knowledge" / "character_states.json"
+    states = [CharacterState(**s) for s in json.loads(states_path.read_text(encoding="utf-8"))]
+    notes = build_moment_notes(scs, cast, states, set(only.split(",")), spans, workers=workers)
+    out = folder / "knowledge" / "moments.json"
+    keep = [n for n in (json.loads(out.read_text(encoding="utf-8")) if out.exists() else [])
+            if not any(a <= n["t"] < b for a, b in spans) or n["character_id"] not in only.split(",")]
+    _save_json(out, sorted(keep + notes, key=lambda n: (n["character_id"], n["t"])))
+    typer.echo(f"saved {len(notes)} moment notes")
+
+
+@app.command()
 def voices(
     movie_id: str,
     register: bool = True,

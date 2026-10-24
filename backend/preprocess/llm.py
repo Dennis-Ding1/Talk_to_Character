@@ -10,7 +10,7 @@ import re
 
 import httpx
 
-from app.boson.client import REALTIME_MODEL, REALTIME_URL
+from app.boson.client import GUARD_MODEL, REALTIME_URL
 from app.config import get_settings
 
 
@@ -43,14 +43,14 @@ async def _higgs_text_async(system: str, user: str) -> str:
 
     s = get_settings()
     async with websockets.connect(
-        f"{REALTIME_URL}?model={REALTIME_MODEL}",
+        f"{REALTIME_URL}?model={GUARD_MODEL}",
         additional_headers={"Authorization": f"Bearer {s.boson_api_key}"},
         max_size=None,
     ) as ws:
         await ws.send(json.dumps({
             "type": "session.update",
             "session": {
-                "model": REALTIME_MODEL,
+                "model": GUARD_MODEL,
                 "instructions": system,
                 "output_modalities": ["text"],
                 "audio": {"input": {"turn_detection": None}},

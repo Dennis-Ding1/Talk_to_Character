@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.boson.client import BosonClient, BosonError
-from app.context.knowledge import MovieNotFound, load_movie
+from app.context.knowledge import MovieNotFound, resolve
 from app.routers.movies import face_crop_path
 from app.schemas import AvatarRequest
 
@@ -31,7 +31,7 @@ def _data_uri(path) -> str:
 
 def _resolve_face(movie_id: str, character_id: str, face_id: str | None):
     try:
-        kb = load_movie(movie_id)
+        kb, _ = resolve(movie_id)  # demo cut: faces and voices live with the full film
         c = kb.character(character_id)
     except (MovieNotFound, KeyError):
         raise HTTPException(404, "movie or character not found")

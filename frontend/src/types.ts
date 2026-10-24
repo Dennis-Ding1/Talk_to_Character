@@ -1,10 +1,21 @@
 // Mirrors backend/app/schemas.py
 
+export interface DemoSegment {
+  key: string;
+  title: string;
+  emoji: string;
+  start: number; // seconds in this (demo) video
+  duration: number;
+}
+
 export interface Movie {
   id: string;
   title: string;
   language: string;
   duration_s?: number | null;
+  /** set for a demo cut: the full film it was cut from (all knowledge is mapped back to it) */
+  source?: string | null;
+  segments?: DemoSegment[];
 }
 
 export interface Character {

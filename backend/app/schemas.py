@@ -7,6 +7,18 @@ from pydantic import BaseModel, Field
 
 # ---------- movie data (on disk) ----------
 
+class DemoSegment(BaseModel):
+    """One clip of a demo cut: demo time [start, start+duration) plays source time [src_start, src_end)."""
+
+    key: str
+    title: str
+    emoji: str = ""
+    src_start: float
+    src_end: float
+    start: float
+    duration: float
+
+
 class Movie(BaseModel):
     id: str
     title: str
@@ -14,6 +26,10 @@ class Movie(BaseModel):
     video: str = "video.mp4"  # file name inside the movie folder
     subtitles: str = "subtitles.srt"
     duration_s: float | None = None
+    # A demo cut of another movie: only the video differs; every time is mapped back to `source`,
+    # so characters remember and know exactly what they would at that point of the full film.
+    source: str | None = None
+    segments: list[DemoSegment] = []
 
 
 class Character(BaseModel):
@@ -48,6 +64,13 @@ class SubtitleLine(BaseModel):
     vo: bool = False  # voice-over / off-screen narration (the speaker isn't in this scene)
 
 
+class Beat(BaseModel):
+    """Something that happens on screen (screenplay action), timed within the film."""
+
+    t: float
+    text: str
+
+
 class Scene(BaseModel):
     id: str
     start: float  # film (screen) time, seconds
@@ -61,6 +84,7 @@ class Scene(BaseModel):
     thread: str | None = None  # e.g. "past", "hearing_1954", "senate_1959"
     slug: str = ""  # screenplay heading, e.g. "INT. ROOM 2022, ATOMIC ENERGY COMMISSION -- DAY"
     action: str = ""  # screenplay action lines (what we see) — used by the summarizer only
+    beats: list[Beat] = []  # timed screenplay action: what happens on screen, second by second
 
 
 class CharacterState(BaseModel):
@@ -80,6 +104,11 @@ class CharacterState(BaseModel):
     emotion: str = ""
     relationships: dict[str, str] = {}
     knows: list[str] = []
+    # inner notes (first person, this scene only): what I did, why, how it felt, what I'd rather hide
+    did: str = ""
+    why: str = ""
+    felt: str = ""
+    hiding: str = ""
 
 
 # ---------- API ----------

@@ -76,3 +76,6 @@ main.with-chat { grid-template-columns: 1fr 380px; }
 .avatar .avatar-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s ease; }
 .avatar .avatar-layer.talk { z-index: 2; }
 .avatar .avatar-layer.on { opacity: 1; }
+.chapters { display: flex; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.chapters button { white-space: nowrap; border-radius: 999px; padding: 6px 14px; }
+.chapters button:hover { border-color: var(--accent); }

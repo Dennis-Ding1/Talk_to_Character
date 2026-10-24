@@ -20,6 +20,13 @@ class Settings(BaseSettings):
 
     frontend_origin: str = "http://localhost:5173"
 
+    # Conversation model (the character's "brain"). 1.5-preview answers with more depth; its tool calls
+    # come back as plain text, so tools stay off (relevant memories are attached to each question instead).
+    realtime_model: str = "higgs-realtime-1.5-preview"
+    realtime_tools: bool = False
+    # Spoiler checker and offline preprocessing keep the stable model
+    guard_model: str = "higgs-realtime"
+
     # How much recent dialogue (seconds before t) goes verbatim into the prompt
     recent_window_s: float = 180.0
 

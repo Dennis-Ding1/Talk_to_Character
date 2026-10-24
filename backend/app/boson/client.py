@@ -13,7 +13,8 @@ import httpx
 from app.config import get_settings
 
 REALTIME_URL = "wss://api.boson.ai/v1/realtime"
-REALTIME_MODEL = "higgs-realtime"
+REALTIME_MODEL = get_settings().realtime_model  # conversation
+GUARD_MODEL = get_settings().guard_model  # spoiler check + preprocessing
 STT_MODEL = "higgs-stt-3.1"
 TTS_MODEL = "higgs-tts-3"
 AVATAR_MODEL = "higgs-avatar"

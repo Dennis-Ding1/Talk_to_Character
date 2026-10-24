@@ -1,15 +1,24 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-from app.context.knowledge import MovieNotFound, list_movies, load_movie
+from app.context.knowledge import MovieNotFound, list_movies, load_movie, resolve
 from app.schemas import Character, CharacterAtTime, Movie
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
 
 def _kb(movie_id: str):
+    """The movie's own folder (its video file)."""
     try:
         return load_movie(movie_id)
+    except MovieNotFound:
+        raise HTTPException(404, f"movie {movie_id!r} not found")
+
+
+def _src(movie_id: str, t: float | None = None):
+    """Knowledge + time to use: for a demo cut, the full source film at the mapped time."""
+    try:
+        return resolve(movie_id, t)
     except MovieNotFound:
         raise HTTPException(404, f"movie {movie_id!r} not found")
 
@@ -23,7 +32,7 @@ def movies():
 def characters(movie_id: str, t: float | None = None):
     """All characters, or (with ?t=) the ones around t for the pause picker, each with their best
     face from this scene before t (look_url) when the film has a face index."""
-    kb = _kb(movie_id)
+    kb, t = _src(movie_id, t)
     if t is None:
         return [CharacterAtTime(**c.model_dump()) for c in kb.characters.values()]
     out = []
@@ -57,7 +66,7 @@ def faces(movie_id: str, t: float):
     """Faces visible in the few seconds before t, as head-and-shoulders crops (the look *now*)."""
     from app.faces import faces_at
 
-    kb = _kb(movie_id)
+    kb, t = _src(movie_id, t)
     video_path = kb.folder / kb.movie.video
     if not video_path.exists():
         return []
@@ -77,7 +86,7 @@ def frame_faces(movie_id: str, t: float):
     this very face (fallback)."""
     from app.faces import recognise_frame
 
-    kb = _kb(movie_id)
+    kb, t = _src(movie_id, t)  # demo cut: recognise in the full film's frame (same index/cache)
     video_path = kb.folder / kb.movie.video
     if not video_path.exists():
         return []
@@ -97,7 +106,7 @@ def frame_faces(movie_id: str, t: float):
 
 @router.get("/{movie_id}/faces/{face_id}.jpg")
 def face_crop(movie_id: str, face_id: str):
-    kb = _kb(movie_id)
+    kb, _ = _src(movie_id)
     path = face_crop_path(kb, face_id)
     if path is None:
         raise HTTPException(404)
@@ -116,7 +125,7 @@ def face_crop_path(kb, face_id: str):
 
 @router.get("/{movie_id}/characters/{character_id}/face")
 def face(movie_id: str, character_id: str):
-    kb = _kb(movie_id)
+    kb, _ = _src(movie_id)
     c = kb.characters.get(character_id)
     if not c or not c.face_image:
         raise HTTPException(404)

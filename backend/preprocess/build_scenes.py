@@ -130,4 +130,69 @@ def build(folder: Path, cast: list[Character], subtitles: str, duration: float |
         a.end = b.start
     if scenes:
         scenes[-1].end = duration or scenes[-1].lines[-1].end + 5
+    fp_name = None
+    if first_person:
+        fp_char = next((c for c in cast if c.id == first_person), None)
+        fp_name = (fp_char.aliases[0] if fp_char and fp_char.aliases else fp_char.name) if fp_char else None
+    _add_beats(scenes, segs, script, cues, flat, fp_name)
     return scenes
+
+
+_FIRST_PERSON = [(re.compile(r"\b(MYSELF|myself)\b"), "himself"),
+                 (re.compile(r"\b(MY|my)\b"), "{n}'s"),
+                 (re.compile(r"\b(I|ME|me)\b"), "{n}")]
+
+
+def _third_person(text: str, name: str) -> str:
+    """The screenplay narrates Oppenheimer's scenes as 'I'/'ME'; other characters' memories need a name."""
+    for pat, rep in _FIRST_PERSON:
+        text = pat.sub(rep.format(n=name), text)
+    return text
+
+
+def _add_beats(scenes: list[Scene], segs, script: list[ScriptScene], cues, flat, fp_name: str | None) -> None:
+    """Time every screenplay action paragraph from the dialogue around it, and attach it to the film
+    scene playing at that moment. A beat sits just after the line before it (or just before the line
+    after it), so a pause mid-scene knows exactly which actions have already happened on screen."""
+    from app.schemas import Beat
+
+    # when each screenplay line is spoken in the film: (scene index, line index) -> (start, end)
+    spoken: dict[tuple[int, int], tuple[float, float]] = {}
+    for c in cues:
+        if c.script_line is None:
+            continue
+        sc, j, _ = flat[c.script_line]
+        a, b = spoken.get((sc, j), (c.start, c.end))
+        spoken[(sc, j)] = (min(a, c.start), max(b, c.end))
+    film_scenes_of: dict[int, list[Scene]] = {}
+    for (sc, _), fs in zip(segs, scenes):
+        film_scenes_of.setdefault(sc, []).append(fs)
+
+    for sc, film in film_scenes_of.items():
+        s = script[sc]
+        timed = [(k, v, spoken.get((sc, v)) if k == "line" else None) for k, v in s.elements]
+        for pos, (kind, text, _) in enumerate(timed):
+            if kind != "action":
+                continue
+            prev_t = next((tm[1] for _, _, tm in reversed(timed[:pos]) if tm), None)
+            next_t = next((tm[0] for _, _, tm in timed[pos + 1:] if tm), None)
+            if prev_t is not None:
+                t = prev_t + 0.5 if next_t is None else min(prev_t + 0.5, (prev_t + next_t) / 2)
+            elif next_t is not None:
+                t = max(next_t - 1.0, film[0].start)
+            else:
+                t = film[0].start
+            # the film scene (of this screenplay scene) that is playing at t, else the closest one
+            home = next((f for f in film if f.start <= t < f.end), None) or min(
+                film, key=lambda f: min(abs(f.start - t), abs(f.end - t)))
+            t = min(max(t, home.start), home.end - 0.01)
+            body = re.sub(r"\s+", " ", text).strip()
+            # drop PDF watermarks, dual-dialogue debris ("ROBB (CONT'D) KITTY (CONT'D) ...") and scraps
+            if (re.search(r"8FLiX|SCREENPLAY DATABASE|\(CONT[’']D\)|^\(COLOU?R\)$", body)
+                    or len(body.split()) < 3):
+                continue
+            if fp_name and s.timeline == "colour":
+                body = _third_person(body, fp_name)
+            home.beats.append(Beat(t=round(t, 2), text=body))
+    for f in scenes:
+        f.beats.sort(key=lambda b: b.t)
