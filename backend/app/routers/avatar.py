@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from app.boson.client import BosonClient, BosonError
 from app.context.delivery import tts_input
-from app.context.knowledge import MovieNotFound, resolve
+from app.context.knowledge import MovieNotFound, load_movie, resolve
 from app.routers.movies import face_crop_path
 from app.schemas import AvatarRequest
 
@@ -39,7 +39,8 @@ def _resolve_face(movie_id: str, character_id: str, face_id: str | None):
     except (MovieNotFound, KeyError):
         raise HTTPException(404, "movie or character not found")
     # Prefer the face grabbed at the pause point (the character's look right now), else the portrait.
-    face_path = face_crop_path(kb, face_id) if face_id else None
+    own_folder = load_movie(movie_id).folder  # a demo cut keeps the crops grabbed from its own video
+    face_path = face_crop_path(kb, face_id, own_folder) if face_id else None
     if face_path is None and c.face_image:
         face_path = kb.folder / "characters" / c.id / c.face_image
     if face_path is None or not face_path.exists():

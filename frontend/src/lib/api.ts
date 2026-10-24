@@ -22,6 +22,7 @@ export const api = {
     fetch(`/api/movies/${movieId}/frame_faces?t=${t.toFixed(3)}`).then(json<FrameFace[]>),
 
   videoUrl: (movieId: string) => `/api/movies/${movieId}/video`,
+  posterUrl: (movieId: string) => `/api/movies/${movieId}/poster`,
   subtitlesUrl: (movieId: string) => `/api/movies/${movieId}/subtitles`,
   faceUrl: (movieId: string, characterId: string) => `/api/movies/${movieId}/characters/${characterId}/face`,
 

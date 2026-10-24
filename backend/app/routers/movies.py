@@ -15,6 +15,13 @@ def _kb(movie_id: str):
         raise HTTPException(404, f"movie {movie_id!r} not found")
 
 
+def _frames(movie_id: str, t: float):
+    """Where to grab the picture at playback time t: this movie's own video at t (a demo cut needs
+    only its own short video, not the full film), and its own folder for the crops."""
+    own = _kb(movie_id)
+    return own.folder / own.movie.video, t, own.folder / "cache" / "faces"
+
+
 def _src(movie_id: str, t: float | None = None):
     """Knowledge + time to use: for a demo cut, the full source film at the mapped time."""
     try:
@@ -52,6 +59,15 @@ def video(movie_id: str):
     return FileResponse(path)  # supports Range requests -> seeking works
 
 
+@router.get("/{movie_id}/poster")
+def poster(movie_id: str):
+    kb = _kb(movie_id)
+    path = kb.folder / kb.movie.poster if kb.movie.poster else None
+    if path is None or not path.exists():
+        raise HTTPException(404, "no poster for this movie")
+    return FileResponse(path)
+
+
 @router.get("/{movie_id}/subtitles")
 def subtitles(movie_id: str):
     kb = _kb(movie_id)
@@ -66,11 +82,10 @@ def faces(movie_id: str, t: float):
     """Faces visible in the few seconds before t, as head-and-shoulders crops (the look *now*)."""
     from app.faces import faces_at
 
-    kb, t = _src(movie_id, t)
-    video_path = kb.folder / kb.movie.video
+    video_path, t_video, crops_dir = _frames(movie_id, t)
     if not video_path.exists():
         return []
-    crops = faces_at(video_path, t, kb.folder / "cache" / "faces")
+    crops = faces_at(video_path, t_video, crops_dir)
     return [
         {"id": f.id, "url": f"/api/movies/{movie_id}/faces/{f.id}.jpg", "frame_t": f.frame_t, "score": f.score}
         for f in crops
@@ -86,16 +101,18 @@ def frame_faces(movie_id: str, t: float):
     this very face (fallback)."""
     from app.faces import recognise_frame
 
-    kb, t = _src(movie_id, t)  # demo cut: recognise in the full film's frame (same index/cache)
-    video_path = kb.folder / kb.movie.video
+    # The frame comes from this movie's own video (for a demo cut: the cut itself, at demo time);
+    # who the faces are comes from the full film's face index, and their best look from film time.
+    video_path, t_video, crops_dir = _frames(movie_id, t)
+    kb, t = _src(movie_id, t)
     if not video_path.exists():
         return []
     animation_profile = kb.folder / "knowledge" / "animation_faces.json"
     faces = recognise_frame(
         video_path,
-        t,
+        t_video,
         kb.folder / "cache" / "face_cores.npz",
-        kb.folder / "cache" / "faces",
+        crops_dir,
         animation_profile=animation_profile,
     )
     out = []
@@ -119,19 +136,23 @@ def frame_faces(movie_id: str, t: float):
 @router.get("/{movie_id}/faces/{face_id}.jpg")
 def face_crop(movie_id: str, face_id: str):
     kb, _ = _src(movie_id)
-    path = face_crop_path(kb, face_id)
+    path = face_crop_path(kb, face_id, _kb(movie_id).folder)
     if path is None:
         raise HTTPException(404)
     return FileResponse(path, media_type="image/jpeg")
 
 
-def face_crop_path(kb, face_id: str):
+def face_crop_path(kb, face_id: str, own_folder=None):
+    """A face picture by id: the film's face-index looks, or a crop grabbed on the fly (in the film's
+    folder, or in the demo cut's own folder when it was grabbed from the cut's video)."""
     if not face_id.replace("_", "").isalnum():
         return None
-    for sub in ("looks", "faces"):  # face-index looks, or on-the-fly crops
-        path = kb.folder / "cache" / sub / f"{face_id}.jpg"
-        if path.exists():
-            return path
+    folders = [kb.folder] + ([own_folder] if own_folder is not None and own_folder != kb.folder else [])
+    for folder in folders:
+        for sub in ("looks", "faces"):
+            path = folder / "cache" / sub / f"{face_id}.jpg"
+            if path.exists():
+                return path
     return None
 
 

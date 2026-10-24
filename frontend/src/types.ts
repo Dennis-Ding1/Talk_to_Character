@@ -13,6 +13,8 @@ export interface Movie {
   title: string;
   language: string;
   duration_s?: number | null;
+  /** image shown on the screen before playback starts */
+  poster?: string | null;
   /** set for a demo cut: the full film it was cut from (all knowledge is mapped back to it) */
   source?: string | null;
   segments?: DemoSegment[];

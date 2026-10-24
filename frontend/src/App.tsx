@@ -21,6 +21,12 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [clock, setClock] = useState({ t: 0, duration: 0 });
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** the film has started (played or jumped into): the poster has faded away */
+  const [started, setStarted] = useState(false);
+  useEffect(() => setStarted(false), [movie?.id]);
+  useEffect(() => {
+    if (clock.t > 0.05) setStarted(true); // a chapter jump also reveals the frame
+  }, [clock.t]);
 
   useEffect(() => {
     api
@@ -55,6 +61,7 @@ export default function App() {
   };
 
   const handlePlay = () => {
+    setStarted(true);
     setPlaying(true);
     setPausedAt(null);
     setTalkingTo(null);
@@ -149,6 +156,23 @@ export default function App() {
                 onPause={() => setPlaying(false)}
                 onTime={(t, d) => setClock({ t, duration: d })}
               />
+            )}
+            {movie?.poster && (
+              <button
+                type="button"
+                className={`poster ${started ? "gone" : ""}`}
+                onClick={() => void videoRef.current?.play()}
+                aria-label={`Play ${movie.title}`}
+                aria-hidden={started}
+                tabIndex={started ? -1 : 0}
+              >
+                {/* the same art, blurred, fills the frame so the poster never sits on black bars */}
+                <img className="poster-backdrop" src={api.posterUrl(movie.id)} alt="" />
+                <img className="poster-art" src={api.posterUrl(movie.id)} alt="" />
+                <span className="poster-play" aria-hidden>
+                  <Icon name="play" size={28} />
+                </span>
+              </button>
             )}
             {movie && paused && (
               <FaceOverlay

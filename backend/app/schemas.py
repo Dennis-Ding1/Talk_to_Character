@@ -25,6 +25,7 @@ class Movie(BaseModel):
     language: str = "en"  # main spoken language, ISO-639-1
     video: str = "video.mp4"  # file name inside the movie folder
     subtitles: str = "subtitles.srt"
+    poster: str | None = None  # image shown before playback starts, file name inside the movie folder
     duration_s: float | None = None
     # A demo cut of another movie: only the video differs; every time is mapped back to `source`,
     # so characters remember and know exactly what they would at that point of the full film.
