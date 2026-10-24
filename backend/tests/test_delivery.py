@@ -4,7 +4,7 @@ from app.context.delivery import realtime_delivery_note, tts_input
 from app.schemas import Character, CharacterState
 
 
-def _character(style: str, profile: str = "expressive") -> Character:
+def _character(style: str, profile: str | None = "expressive") -> Character:
     return Character(id="test", name="Test", speech_style=style, delivery_profile=profile)
 
 
@@ -61,3 +61,10 @@ def test_subtle_profile_does_not_turn_scene_mood_or_voice_prose_into_global_cont
     assert "natural" in note
     assert "angry" not in note
     assert "quick pace" not in note
+
+
+def test_oppenheimer_has_a_tracked_subtle_preset_when_movie_data_is_local_only():
+    character = Character(id="oppenheimer", name="J. Robert Oppenheimer", speech_style="Quick, understated.")
+    state = CharacterState(character_id="oppenheimer", t=10, emotion="Frustrated, determined")
+
+    assert tts_input("I understand.", character, state) == "I understand."

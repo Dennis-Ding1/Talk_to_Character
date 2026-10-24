@@ -55,9 +55,10 @@ where NAME matches a character's `id`, `name` or one of its `aliases`. Unattribu
   own `characters/<id>/face.png` and set `"face_image": "face.png"`.
 - **voice_clip**: 5–30 s where only this character speaks, ideally little music. The pipeline
   removes music with demucs, but cleaner input = better clone.
-- **delivery_profile**: optional `expressive` (default) maps scene mood and speech style to explicit
-  delivery controls. Use `subtle` for naturalistic characters; only clear cues in the current line
-  receive emotion tags, while the cloned voice and persona prompt carry the performance.
+- **delivery_profile**: optional `expressive` maps scene mood and speech style to explicit delivery
+  controls. Use `subtle` for naturalistic characters; only clear cues in the current line receive
+  emotion tags, while the cloned voice and persona prompt carry the performance. When omitted, a
+  project character preset is used when available, then `expressive`.
 - `voice_id` and `face_image` are filled in by the pipeline.
 
 ## Generated: knowledge/scenes.json

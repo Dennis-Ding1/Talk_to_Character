@@ -12,6 +12,11 @@ from app.schemas import Character, CharacterState
 
 _CONTROL_TAG = re.compile(r"<\|[^<>|]{1,80}\|>")
 
+# Movie folders other than the tiny demo are deliberately git-ignored. Keep the
+# project character presets here so a fresh checkout behaves like the demo setup;
+# characters.json can still explicitly override either profile.
+_SUBTLE_CHARACTER_PRESETS = {"oppenheimer"}
+
 _EMOTIONS = {
     "elation",
     "amusement",
@@ -95,6 +100,12 @@ def _contains(text: str, words: tuple[str, ...]) -> bool:
     return any(re.search(r"\b" + re.escape(word) + r"\b", text) for word in words)
 
 
+def _is_subtle(character: Character) -> bool:
+    if character.delivery_profile is not None:
+        return character.delivery_profile == "subtle"
+    return character.id.casefold() in _SUBTLE_CHARACTER_PRESETS
+
+
 def _emotion(state: CharacterState | None, text: str) -> str | None:
     mood = state.emotion.lower() if state else ""
     for value, words in _EMOTION_WORDS:
@@ -112,7 +123,7 @@ def _emotion(state: CharacterState | None, text: str) -> str | None:
 def _delivery_tags(character: Character, state: CharacterState | None, text: str) -> list[str]:
     style = character.speech_style.lower()
     tags: list[str] = []
-    subtle = character.delivery_profile == "subtle"
+    subtle = _is_subtle(character)
     # Subtle characters are not locked to a whole scene's narrative mood. They
     # can still react to an unmistakable cue in the actual line being spoken.
     emotion = _emotion(None if subtle else state, text)
@@ -163,7 +174,7 @@ def tts_input(text: str, character: Character, state: CharacterState | None = No
 
 def realtime_delivery_note(character: Character, state: CharacterState | None = None) -> str:
     """Translate the same delivery decision into Realtime's natural-language controls."""
-    if character.delivery_profile == "subtle":
+    if _is_subtle(character):
         return ("Delivery: Keep the vocal performance natural and do not exaggerate a single mood. "
                 "Follow the character's voice style without saying stage directions or control tags aloud.")
     style = character.speech_style.lower()

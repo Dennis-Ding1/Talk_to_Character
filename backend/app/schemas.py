@@ -41,7 +41,8 @@ class Character(BaseModel):
     speech_style: str = ""  # catchphrases, tone, dialect
     # expressive: scene mood + speech style may become explicit TTS/Realtime delivery controls.
     # subtle: preserve the cloned voice's natural performance; use tags only for cues in the reply.
-    delivery_profile: Literal["expressive", "subtle"] = "expressive"
+    # None uses the project's character preset, then falls back to expressive.
+    delivery_profile: Literal["expressive", "subtle"] | None = None
     core: str = ""  # deep drives and beliefs that hold across the whole story (must not spoil anything)
     relationships: dict[str, str] = {}  # other character id -> description (baseline, t=0)
     # Assets
