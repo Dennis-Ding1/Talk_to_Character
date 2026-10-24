@@ -8,7 +8,7 @@ export interface RealtimeHandlers {
   onUserTranscript?: (itemId: string, text: string) => void;
   onAssistantDelta?: (itemId: string, delta: string) => void; // transcript (audio mode) or text (text mode)
   onAssistantDone?: (itemId: string, text: string) => void;
-  onAudioDelta?: (b64: string) => void;
+  onAudioDelta?: (b64: string, itemId: string) => void;
   onSpeechStarted?: () => void; // user started talking -> barge-in
   onResponseDone?: (status: string) => void;
   onToolCall?: (name: string, args: unknown) => Promise<string>;
@@ -103,6 +103,16 @@ export class RealtimeSession {
     this.send({ type: "response.cancel" });
   }
 
+  /** Make the character say exactly `text` (e.g. the spoiler-safe version of a line they started). */
+  say(text: string) {
+    this.send({
+      type: "response.create",
+      response: {
+        instructions: `Say exactly this, in character, in the same language, and nothing else: "${text.replace(/"/g, "'")}"`,
+      },
+    });
+  }
+
   close() {
     this.ws?.close();
     this.ws = undefined;
@@ -117,7 +127,7 @@ export class RealtimeSession {
         this.h.onUserTranscript?.(ev.item_id, ev.transcript);
         break;
       case "response.output_audio.delta":
-        this.h.onAudioDelta?.(ev.delta);
+        this.h.onAudioDelta?.(ev.delta, ev.item_id);
         break;
       case "response.output_audio_transcript.delta":
       case "response.output_text.delta": {

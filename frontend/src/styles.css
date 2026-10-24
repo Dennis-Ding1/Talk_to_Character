@@ -416,15 +416,15 @@ main.with-chat { grid-template-columns: minmax(0, 1fr) clamp(360px, 30vw, 440px)
 .close-btn { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; background: rgba(28, 6, 11, 0.7); border: 1px solid var(--line-strong); }
 
 /* the name sits under the picture, never over the face */
-.portrait-caption { padding: 12px 22px 2px; }
+.portrait-caption { padding: 10px 22px 2px; }
 .portrait-caption .lockup {
   font-family: var(--marquee);
   font-weight: 800;
-  font-size: clamp(36px, 3.1vw, 50px);
-  line-height: 0.88;
-  letter-spacing: 0.01em;
+  font-size: clamp(20px, 1.6vw, 26px);
+  line-height: 1;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   text-wrap: balance;
 }
 .live-line { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); min-height: 18px; }
@@ -579,6 +579,8 @@ main.with-chat { grid-template-columns: minmax(0, 1fr) clamp(360px, 30vw, 440px)
 .mic.on { background: var(--gold); color: var(--gold-ink); }
 .mic.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--gold); animation: ring 1.4s var(--ease-out) infinite; }
 @keyframes ring { to { transform: scale(1.55); opacity: 0; } }
+/* hands-free: the mic is simply on (gold), no recording pulse */
+.mic.on.live::after { content: none; }
 .mic-hint { margin: 0; padding: 4px 22px 12px; font-size: 13px; min-height: 1.5em; color: var(--gold); }
 
 /* ---------- smaller screens ---------- */
@@ -602,7 +604,7 @@ main.with-chat { grid-template-columns: minmax(0, 1fr) clamp(360px, 30vw, 440px)
   .composer-wrap .mic-hint { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
   /* short enough that the name and live state line clear the sticky composer */
   .avatar { max-height: 24vh; }
-  .portrait-caption .lockup { font-size: 34px; }
+  .portrait-caption .lockup { font-size: 20px; }
   .control-label { display: none; }
 }
 

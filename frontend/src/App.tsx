@@ -97,19 +97,19 @@ export default function App() {
             onChange={setKnowledge}
             options={[
               { value: "present", label: "Up to now" },
-              { value: "omniscient", label: "The ending" },
+              { value: "omniscient", label: "Omniscience" },
             ]}
           />
         </div>
         <div className="control">
-          <span className="control-label">Avatar</span>
+          <span className="control-label">Mode</span>
           <Segmented
-            label="Avatar"
+            label="Mode"
             value={mode}
             onChange={setMode}
             options={[
               { value: "voice_first", label: "Voice" },
-              { value: "lip_sync", label: "Lip-sync" },
+              { value: "lip_sync", label: "Avatar" },
             ]}
           />
         </div>

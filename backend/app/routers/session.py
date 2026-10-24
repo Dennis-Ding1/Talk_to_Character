@@ -29,20 +29,29 @@ async def create_session(req: SessionRequest):
     if req.user_lang:
         transcription["language"] = req.user_lang
 
+    voice_mode = req.mode == "voice_first"
     session = {
         "model": REALTIME_MODEL,
         "instructions": build_instructions(kb, req.character_id, t_src, req.knowledge),
-        # Realtime only thinks (text). Each sentence is spoiler-checked and then spoken with the
-        # cloned voice by /api/speak (Higgs TTS), or by the avatar endpoint in lip_sync mode.
-        "output_modalities": ["text"],
+        # voice_first: Realtime speaks directly with the cloned voice (first audio ~0.7 s after the
+        # user stops talking); the browser spoiler-checks the reply transcript as it streams and makes
+        # the character take back a sentence that reveals something.
+        # lip_sync: Realtime only thinks (text); the reply is spoiler-checked, then the avatar speaks it.
+        "output_modalities": ["audio"] if voice_mode else ["text"],
         "audio": {
             "input": {
                 "format": {"type": "audio/pcm", "rate": 24000},
-                # Push-to-talk: the client commits the audio buffer when the user taps the mic again.
-                # (Automatic VAD made the character hear itself through the speakers and stop.)
-                "turn_detection": None,
+                # voice_first: hands-free. Semantic VAD ends the turn when the user has finished
+                # (also on natural pauses), and barges in when they talk over the character.
+                # create_response=False: the browser asks for the reply itself once the transcript is
+                # in (~0.3 s), so the memories relevant to the question can go in first.
+                # lip_sync: push-to-talk; the client commits the audio when the mic is tapped again.
+                "turn_detection": {"type": "semantic_vad", "create_response": False} if voice_mode else None,
                 "transcription": transcription,
-                "noise_reduction": {"type": "near_field"},
+                # No server-side noise reduction: near_field cut most of each question before
+                # transcription (measured: a 15-word question came back as its last 4 words).
+                # The browser already applies echo cancellation and noise suppression.
+                "noise_reduction": None,
             },
             "output": {
                 "format": {"type": "audio/pcm", "rate": 24000},

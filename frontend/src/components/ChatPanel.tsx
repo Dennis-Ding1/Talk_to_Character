@@ -34,7 +34,8 @@ interface Props {
 /** The front row: the character, stepped out of the frame, and the conversation. */
 export function ChatPanel({ movieId, character, face, t, mode, knowledge, onClose }: Props) {
   const avatar = useRef<AvatarHandle>(null);
-  const { messages, status, error, session, pending, startMic, stopMic, sendText } = useConversation({
+  const { messages, status, error, session, pending, handsFree, muted, toggleMute, startMic, stopMic, sendText } =
+    useConversation({
     movieId,
     characterId: character.id,
     t,
@@ -67,6 +68,15 @@ export function ChatPanel({ movieId, character, face, t, mode, knowledge, onClos
   const busy = status === "connecting" || status === "error";
   const speaking = status === "speaking" || avatarTalking;
   const live = speaking ? "speaking" : status;
+  // hands-free: "your turn" means the mic is listening for you (unless muted)
+  const liveLabel =
+    handsFree && live === "ready"
+      ? muted
+        ? "Mic off"
+        : "Listening"
+      : handsFree && live === "listening"
+        ? "Hearing you"
+        : STATUS_LABEL[live];
   const send = (text: string) => {
     if (text.trim()) void sendText(text.trim());
   };
@@ -106,7 +116,7 @@ export function ChatPanel({ movieId, character, face, t, mode, knowledge, onClos
             ) : (
               <span className="dot" aria-hidden />
             )}
-            {STATUS_LABEL[live]}
+            {liveLabel}
             <span className="live-sep" aria-hidden />
             <span className="tc">{fmtTime(t)}</span>
           </div>
@@ -130,7 +140,11 @@ export function ChatPanel({ movieId, character, face, t, mode, knowledge, onClos
 
         {status === "ready" && messages.length === 0 && (
           <div className="opening">
-            <p>Ask in any language. Type below, or tap the mic, speak, and tap it again to send.</p>
+            <p>
+              {handsFree
+                ? "Ask in any language. Just talk: the mic is on, and you can cut in while they speak. Or type below."
+                : "Ask in any language. Type below, or tap the mic, speak, and tap it again to send."}
+            </p>
             <div className="suggestions">
               {SUGGESTIONS[knowledge].map((q) => (
                 <button key={q} type="button" onClick={() => send(q)}>
@@ -203,15 +217,33 @@ export function ChatPanel({ movieId, character, face, t, mode, knowledge, onClos
               <Icon name="send" size={18} />
             </button>
           </div>
-          <MicButton
-            listening={status === "listening"}
-            disabled={busy}
-            onStart={() => void startMic()}
-            onStop={stopMic}
-          />
+          {handsFree ? (
+            <MicButton
+              listening={!muted}
+              handsFree
+              disabled={busy}
+              onStart={() => void toggleMute()}
+              onStop={() => void toggleMute()}
+            />
+          ) : (
+            <MicButton
+              listening={status === "listening"}
+              disabled={busy}
+              onStart={() => void startMic()}
+              onStop={() => void stopMic()}
+            />
+          )}
         </form>
-        <p className={`mic-hint ${status === "listening" ? "on" : ""}`} aria-live="polite">
-          {status === "listening" ? "Recording. Tap the mic again to send." : " "}
+        <p className={`mic-hint ${status === "listening" || muted ? "on" : ""}`} aria-live="polite">
+          {handsFree
+            ? muted
+              ? "Mic off. Tap the mic to talk again."
+              : status === "listening"
+                ? "Hearing you…"
+                : " "
+            : status === "listening"
+              ? "Recording. Tap the mic again to send."
+              : " "}
         </p>
       </div>
     </aside>

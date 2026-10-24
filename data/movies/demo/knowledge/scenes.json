@@ -1,0 +1,41 @@
+[
+  {
+    "id": "s000",
+    "start": 0,
+    "end": 60,
+    "characters_present": ["alice", "bob"],
+    "summary": "Bob asks Alice for one last job: the Meridian vault on Friday night. She reluctantly agrees.",
+    "key_events": ["The target is the Meridian vault", "The job is on Friday night"],
+    "lines": [
+      {"start": 3, "end": 6, "text": "I need you for one more job, Alice. Just one.", "speaker": "bob"},
+      {"start": 7, "end": 10, "text": "You said that last time, kid.", "speaker": "alice"},
+      {"start": 11, "end": 15, "text": "The vault at the Meridian. Friday night. Trust me.", "speaker": "bob"},
+      {"start": 40, "end": 44, "text": "Fine. But if this goes wrong, I'm done with you.", "speaker": "alice"}
+    ]
+  },
+  {
+    "id": "s001",
+    "start": 60,
+    "end": 120,
+    "characters_present": ["carol"],
+    "summary": "Alone on the phone, Carol reveals she is an undercover cop who has infiltrated the crew.",
+    "key_events": ["Carol is an undercover police officer", "Police plan a raid on Friday"],
+    "lines": [
+      {"start": 65, "end": 69, "text": "(on the phone) I'm in. They don't suspect a thing.", "speaker": "carol"},
+      {"start": 70, "end": 74, "text": "Tell the captain the raid is on for Friday.", "speaker": "carol"}
+    ]
+  },
+  {
+    "id": "s002",
+    "start": 120,
+    "end": 180,
+    "characters_present": ["alice", "carol"],
+    "summary": "Carol introduces herself to Alice as the new driver; Alice is suspicious but welcomes her.",
+    "key_events": ["Alice accepts Carol into the crew"],
+    "lines": [
+      {"start": 125, "end": 128, "text": "You must be Alice. I'm your driver.", "speaker": "carol"},
+      {"start": 130, "end": 133, "text": "Bob didn't mention you.", "speaker": "alice"},
+      {"start": 160, "end": 165, "text": "Welcome to the crew. Don't make me regret it.", "speaker": "alice"}
+    ]
+  }
+]

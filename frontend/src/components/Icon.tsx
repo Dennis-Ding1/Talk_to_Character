@@ -9,6 +9,12 @@ const PATHS = {
       <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
     </>
   ),
+  "mic-off": (
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7M4 4l16 16" />
+    </>
+  ),
   play: <path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none" />,
   pause: <path d="M8 5v14M16 5v14" strokeWidth="2.5" />,
   stop: <rect x="7" y="7" width="10" height="10" fill="currentColor" stroke="none" />,
