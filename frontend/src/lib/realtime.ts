@@ -103,6 +103,11 @@ export class RealtimeSession {
     this.send({ type: "response.cancel" });
   }
 
+  /** Remove an item from the conversation (e.g. a "question" that was only noise or echo). */
+  deleteItem(itemId: string) {
+    this.send({ type: "conversation.item.delete", item_id: itemId });
+  }
+
   /** Make the character say exactly `text` (e.g. the spoiler-safe version of a line they started). */
   say(text: string) {
     this.send({

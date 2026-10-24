@@ -36,8 +36,10 @@ async def create_session(req: SessionRequest):
         # voice_first: Realtime speaks directly with the cloned voice (first audio ~0.7 s after the
         # user stops talking); the browser spoiler-checks the reply transcript as it streams and makes
         # the character take back a sentence that reveals something.
-        # lip_sync: Realtime only thinks (text); the reply is spoiler-checked, then the avatar speaks it.
-        "output_modalities": ["audio"] if voice_mode else ["text"],
+        # lip_sync: Realtime also speaks the reply in the cloned voice, but the browser holds the
+        # audio: once every sentence has passed the spoiler check, the avatar is driven by that audio
+        # (rendering starts ~2 s sooner from audio than from text, and runs faster than real time).
+        "output_modalities": ["audio"],
         "audio": {
             "input": {
                 "format": {"type": "audio/pcm", "rate": 24000},
@@ -71,8 +73,10 @@ async def create_session(req: SessionRequest):
             raise HTTPException(502, str(e))
 
     omni = req.knowledge == "omniscient"
+    # conversations are kept per film and film time (a demo cut shares them with the full film, and
+    # re-cutting the demo can't attach a chat to the wrong scene)
     history = memory.as_realtime_items(
-        memory.load(req.movie_id, req.character_id, req.knowledge, at_t=None if omni else req.t))
+        memory.load(kb.movie.id, req.character_id, req.knowledge, at_t=None if omni else t_src))
     return SessionResponse(
         client_secret=secret,
         realtime_url=f"{REALTIME_URL}?model={REALTIME_MODEL}",
@@ -105,13 +109,23 @@ def get_question_notes(req: _NotesRequest):
     return {"notes": question_notes(kb, req.character_id, t_src, req.question, req.knowledge)}
 
 
+def _film(movie_id: str, t: float = 0.0) -> tuple[str, float]:
+    """(film id, film time): a demo cut's time maps to its full film."""
+    try:
+        kb, t_src = resolve(movie_id, t)
+    except MovieNotFound:
+        raise HTTPException(404, "movie not found")
+    return kb.movie.id, t_src
+
+
 @router.post("/memory/{movie_id}/{character_id}")
 def save_turn(movie_id: str, character_id: str, turn: Turn, knowledge: KnowledgeMode = "present"):
-    memory.append(movie_id, character_id, turn, knowledge)
+    film, t_src = _film(movie_id, turn.t)
+    memory.append(film, character_id, turn.model_copy(update={"t": t_src}), knowledge)
     return {"ok": True}
 
 
 @router.delete("/memory/{movie_id}/{character_id}")
 def clear_memory(movie_id: str, character_id: str):
-    memory.clear(movie_id, character_id)
+    memory.clear(_film(movie_id)[0], character_id)
     return {"ok": True}

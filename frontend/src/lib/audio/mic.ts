@@ -2,6 +2,8 @@ import { bytesToBase64 } from "./pcm";
 
 const PRE_ROLL_S = 0.5; // audio kept from just before the button press (people start talking at once)
 const TAIL_MS = 250; // keep recording briefly after the stop press (people press stop on the last word)
+const GATE_HOLD = 3; // ~300 ms of loud audio while the character talks = the user cutting in
+const GATE_RING = 7; // ~700 ms kept from before the cut-in is confirmed (so its first words are heard)
 
 /** Captures the microphone as 24 kHz PCM16 (~100 ms base64 chunks) for push-to-talk.
  *  The microphone stays open for the whole conversation once opened, so a press doesn't pay the
@@ -16,10 +18,13 @@ export class Mic {
   private opening?: Promise<void>;
   private onChunk?: (b64: string) => void;
   private preRoll: ArrayBuffer[] = [];
-  /** Echo guard for hands-free use: while it returns > 0, chunks quieter than that RMS (0..1) are
-   *  sent as silence, so the character's own voice from the speakers doesn't count as the user
-   *  talking (and interrupt them). Speaking up close to the mic still gets through. */
+  /** Echo guard for hands-free use: while it returns > 0 (the character is talking), audio is held
+   *  back unless it stays louder than that RMS (0..1) for a moment, so the character's own voice
+   *  from the speakers doesn't count as the user talking (and interrupt them). */
   gate?: () => number;
+  private gateOpen = false; // the user is talking over the character: let everything through
+  private recent: ArrayBuffer[] = []; // last chunks held while the character talks
+  private loudRun = 0; // loud chunks in a row while the character talks
   /** Seconds of audio captured since start(). */
   seconds = 0;
 
@@ -54,8 +59,27 @@ export class Mic {
     if (this.onChunk) {
       this.seconds += buf.byteLength / 2 / 24000;
       const min = this.gate?.() ?? 0;
-      if (min > 0 && rms(buf) < min) buf = new ArrayBuffer(buf.byteLength); // silence, same length
-      this.onChunk(bytesToBase64(new Uint8Array(buf)));
+      if (min <= 0 || this.gateOpen) {
+        if (min <= 0) {
+          this.gateOpen = false;
+          this.recent = []; // held audio from while the character talked: their voice, not the user
+          this.loudRun = 0;
+        }
+        this.onChunk(bytesToBase64(new Uint8Array(buf)));
+        return;
+      }
+      // While the character talks, nothing is sent: only sustained loud speech (GATE_HOLD chunks in
+      // a row) counts as the user cutting in; short bursts are usually the character's own voice from
+      // the speakers. The last GATE_RING chunks are kept, so when the user does cut in, their first
+      // (quieter) words go out too instead of being lost.
+      this.recent.push(buf);
+      if (this.recent.length > GATE_RING) this.recent.shift();
+      this.loudRun = rms(buf) >= min ? this.loudRun + 1 : 0;
+      if (this.loudRun >= GATE_HOLD) {
+        this.gateOpen = true;
+        for (const b of this.recent) this.onChunk(bytesToBase64(new Uint8Array(b)));
+        this.recent = [];
+      }
       return;
     }
     this.preRoll.push(buf);

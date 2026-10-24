@@ -7,8 +7,9 @@ export class PcmPlayer {
   private sources: AudioBufferSourceNode[] = [];
   private carry: number | null = null; // odd trailing byte from the previous network chunk
 
-  push(b64: string) {
-    this.pushBytes(base64ToBytes(b64));
+  /** Returns when (AudioContext time) this chunk will start sounding, or null if nothing was queued. */
+  push(b64: string): number | null {
+    return this.pushBytes(base64ToBytes(b64));
   }
 
   /** Raw PCM16 little-endian bytes, as they arrive from a stream (any chunk size).

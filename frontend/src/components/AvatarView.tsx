@@ -83,6 +83,9 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
       await playFmp4Stream(el, res, {
         signal: ctrl.signal,
         finish: finish.signal,
+        // driven by finished audio, Higgs Avatar renders ~1.3x faster than real time, so playback
+        // never catches up and 1 s of buffer is enough; from text it renders at ~1x and needs 3 s
+        startBuffer: body.audio_b64 ? 1.0 : 3.0,
         onStart: () => {
           if (ctrl.signal.aborted) return;
           // cross-fade over whatever is underneath, then silence and hide the previous reply
