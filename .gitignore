@@ -44,3 +44,11 @@ backend/smoke_out/
 
 # design review captures contain film frames (copyrighted): never commit
 .impeccable/review/
+
+# personal narration audio and voice id (the script text can be committed)
+backend/narration/*.wav
+backend/narration/voice.json
+backend/scripts/my_voice.*
+
+# demo video project (footage, Premiere files, renders)
+demo_video/

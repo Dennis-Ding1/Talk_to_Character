@@ -17,6 +17,7 @@ class DemoSegment(BaseModel):
     src_end: float
     start: float
     duration: float
+    jump: float | None = None  # where its chapter button jumps to (demo seconds); default: the start
 
 
 class Movie(BaseModel):
