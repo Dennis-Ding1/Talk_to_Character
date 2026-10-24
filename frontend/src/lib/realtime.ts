@@ -30,6 +30,11 @@ export function detectLanguage(text: string): string | null {
 export class RealtimeSession {
   private ws?: WebSocket;
   private textBuf = new Map<string, string>();
+  // Response lifecycle, so a cancel is only sent while a response really runs. (Cancelling one that
+  // has already finished makes the server answer "No active response to cancel".)
+  private requested = 0; // response.create sent, response.created not seen yet
+  private active = false; // between response.created and response.done
+  private cancelOnStart = false; // cancel() came before the response had started
   /** Short instruction appended after every user turn (backend-provided). */
   turnNote = "";
 
@@ -79,7 +84,12 @@ export class RealtimeSession {
         item: { type: "message", role: "user", content: [{ type: "input_text", text: n }] },
       });
     }
-    this.send({ type: "response.create" });
+    this.createResponse();
+  }
+
+  private createResponse(response?: Record<string, unknown>) {
+    this.requested++;
+    this.send(response ? { type: "response.create", response } : { type: "response.create" });
   }
 
   sendText(text: string, notes: string[] = []) {
@@ -99,8 +109,10 @@ export class RealtimeSession {
     this.send({ type: "session.update", session: { instructions } });
   }
 
+  /** Stop the reply in progress (or the one just requested, as soon as it starts). */
   cancel() {
-    this.send({ type: "response.cancel" });
+    if (this.active) this.send({ type: "response.cancel" });
+    else if (this.requested > 0) this.cancelOnStart = true;
   }
 
   /** Remove an item from the conversation (e.g. a "question" that was only noise or echo). */
@@ -110,11 +122,9 @@ export class RealtimeSession {
 
   /** Make the character say exactly `text` (e.g. the spoiler-safe version of a line they started). */
   say(text: string) {
-    this.send({
-      type: "response.create",
-      response: {
-        instructions: `Say exactly this, in character, in the same language, and nothing else: "${text.replace(/"/g, "'")}"`,
-      },
+    this.cancelOnStart = false; // a fresh reply: an earlier cancel must not hit it
+    this.createResponse({
+      instructions: `Say exactly this, in character, in the same language, and nothing else: "${text.replace(/"/g, "'")}"`,
     });
   }
 
@@ -162,13 +172,24 @@ export class RealtimeSession {
           type: "conversation.item.create",
           item: { type: "function_call_output", call_id: ev.call_id, output },
         });
-        this.send({ type: "response.create" });
+        this.createResponse();
         break;
       }
+      case "response.created":
+        this.requested = Math.max(0, this.requested - 1);
+        this.active = true;
+        if (this.cancelOnStart) {
+          this.cancelOnStart = false;
+          this.send({ type: "response.cancel" });
+        }
+        break;
       case "response.done":
+        this.active = false;
         this.h.onResponseDone?.(ev.response?.status);
         break;
       case "error":
+        // a cancel racing the end of a reply is harmless; don't show it to the user
+        if (/no active response/i.test(String(ev.error?.message ?? ""))) break;
         this.h.onError?.(ev.error);
         break;
     }
