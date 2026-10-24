@@ -5,6 +5,8 @@ interface Props {
   videoRef: RefObject<HTMLVideoElement>;
   faces: FrameFace[] | null; // null = still recognising
   hoveredId: string | null;
+  /** the character you are talking to: only their spot stays, lit solid */
+  chosenId?: string | null;
   onHover: (characterId: string | null) => void;
   onPick: (c: Character) => void;
 }
@@ -31,7 +33,7 @@ function contentRect(v: HTMLVideoElement): Rect | null {
 }
 
 /** Clickable boxes over the paused frame: click a recognised face to talk to that character. */
-export function FaceOverlay({ videoRef, faces, hoveredId, onHover, onPick }: Props) {
+export function FaceOverlay({ videoRef, faces, hoveredId, chosenId, onHover, onPick }: Props) {
   const [rect, setRect] = useState<Rect | null>(null);
 
   useEffect(() => {
@@ -51,23 +53,38 @@ export function FaceOverlay({ videoRef, faces, hoveredId, onHover, onPick }: Pro
   if (!rect) return null;
   return (
     <div className="face-overlay" style={rect}>
-      {faces === null && <div className="face-overlay-hint">Recognising faces…</div>}
-      {faces?.map((f) => {
+      {faces === null && !chosenId && <div className="intertitle-chip">Finding faces</div>}
+      {faces !== null && !chosenId && !faces.some((f) => f.character) && (
+        <div className="intertitle-chip still">No one to talk to in this frame. Play on and pause again.</div>
+      )}
+      {faces?.map((f, i) => {
+        if (chosenId && f.character?.id !== chosenId) return null;
         const [x, y, w, h] = f.box;
+        // a follow-spot: a circle around the face box, in frame-relative units
+        const d = Math.max(w * rect.width, h * rect.height) * 1.35;
+        const style = {
+          left: `calc(${(x + w / 2) * 100}% - ${d / 2}px)`,
+          top: `calc(${(y + h / 2) * 100}% - ${d / 2}px)`,
+          width: d,
+          height: d,
+          animationDelay: `${i * 90}ms`,
+        };
         const c = f.character;
-        const style = { left: `${x * 100}%`, top: `${y * 100}%`, width: `${w * 100}%`, height: `${h * 100}%` };
-        if (!c) return <div key={f.face_id} className="face-box unknown" style={style} title="Not recognised" />;
+        if (!c) return <div key={f.face_id} className="spot unknown" style={style} aria-hidden />;
+        if (chosenId) return <div key={f.face_id} className="spot chosen" style={style} aria-hidden />;
         return (
           <button
             key={f.face_id}
-            className={`face-box ${hoveredId === c.id ? "hovered" : ""}`}
+            className={`spot ${hoveredId === c.id ? "hovered" : ""}`}
             style={style}
             onClick={() => onPick(c)}
             onMouseEnter={() => onHover(c.id)}
             onMouseLeave={() => onHover(null)}
-            title={`Talk to ${c.name}`}
+            onFocus={() => onHover(c.id)}
+            onBlur={() => onHover(null)}
+            aria-label={`Talk to ${c.name}`}
           >
-            <span className="face-label">{c.name}</span>
+            <span className="spot-name">{c.name}</span>
           </button>
         );
       })}

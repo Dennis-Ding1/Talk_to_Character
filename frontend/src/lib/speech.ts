@@ -3,7 +3,7 @@ import type { PcmPlayer } from "./audio/pcm-player";
 interface Handlers {
   /** POST one sentence to /api/speak (spoiler check + cloned-voice TTS); returns the PCM stream */
   request: (text: string, signal: AbortSignal) => Promise<Response>;
-  /** the text actually spoken (after the spoiler check), right as its audio starts */
+  /** the text actually spoken (after the spoiler check), at the moment its audio starts sounding */
   onSpoken: (text: string, rewritten: boolean, tag: string) => void;
   onStart: () => void;
   /** all queued sentences have finished playing */
@@ -20,6 +20,8 @@ export class SpeechQueue {
   private static readonly MAX_IN_FLIGHT = 2; // the sentence playing + the next one
   private running = false;
   private gen = 0;
+  /** sentences whose words are waiting for their audio to actually start */
+  private waitingToShow = 0;
 
   constructor(
     private player: PcmPlayer,
@@ -45,12 +47,13 @@ export class SpeechQueue {
   }
 
   get busy() {
-    return this.running || this.items.length > 0 || this.player.playing;
+    return this.running || this.items.length > 0 || this.player.playing || this.waitingToShow > 0;
   }
 
   /** Interrupt: drop everything, silence now. */
   stop() {
     this.gen++;
+    this.waitingToShow = 0;
     for (const it of this.items) it.abort.abort();
     this.items = [];
     this.running = false;
@@ -70,11 +73,24 @@ export class SpeechQueue {
         if (gen !== this.gen) break;
         if (res.ok && res.body) {
           const spoken = decodeURIComponent(res.headers.get("X-Spoken-Text") ?? "");
-          this.h.onSpoken(spoken, res.headers.get("X-Spoiler-Rewritten") === "1", it.tag);
-          if (!started) {
-            started = true;
-            this.h.onStart();
-          }
+          const rewritten = res.headers.get("X-Spoiler-Rewritten") === "1";
+          // subtitles: the words appear when this sentence's audio really starts, not when it arrives
+          // (the previous sentence may still be playing)
+          let shown = false;
+          const show = (delayMs: number) => {
+            if (shown) return;
+            shown = true;
+            this.waitingToShow++;
+            window.setTimeout(() => {
+              if (gen !== this.gen) return;
+              this.waitingToShow--;
+              this.h.onSpoken(spoken, rewritten, it.tag);
+              if (!started) {
+                started = true;
+                this.h.onStart();
+              }
+            }, delayMs);
+          };
           const reader = res.body.getReader();
           for (;;) {
             const { done, value } = await reader.read();
@@ -83,8 +99,11 @@ export class SpeechQueue {
               void reader.cancel();
               break;
             }
-            this.player.pushBytes(value);
+            const startsAt = this.player.pushBytes(value);
+            if (startsAt !== null) show(this.player.msUntil(startsAt));
           }
+          // no audio came back (TTS failed): still show the words, once whatever is playing ends
+          if (gen === this.gen) show(this.player.msUntilDone);
         }
       } catch {
         // aborted or failed: skip this sentence
@@ -94,7 +113,7 @@ export class SpeechQueue {
     if (gen !== this.gen) return;
     this.running = false;
     // wait for the audio already scheduled to finish before saying we're idle
-    while (this.player.playing && gen === this.gen && !this.items.length) {
+    while ((this.player.playing || this.waitingToShow > 0) && gen === this.gen && !this.items.length) {
       await new Promise((r) => setTimeout(r, 150));
     }
     if (gen === this.gen && !this.items.length && !this.running) this.h.onIdle();

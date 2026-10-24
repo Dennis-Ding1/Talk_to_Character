@@ -11,8 +11,9 @@ export class PcmPlayer {
     this.pushBytes(base64ToBytes(b64));
   }
 
-  /** Raw PCM16 little-endian bytes, as they arrive from a stream (any chunk size). */
-  pushBytes(chunk: Uint8Array) {
+  /** Raw PCM16 little-endian bytes, as they arrive from a stream (any chunk size).
+   *  Returns when (AudioContext time) this chunk will start sounding, or null if nothing was queued. */
+  pushBytes(chunk: Uint8Array): number | null {
     let bytes = chunk;
     if (this.carry !== null) {
       bytes = new Uint8Array(chunk.length + 1);
@@ -24,7 +25,7 @@ export class PcmPlayer {
       this.carry = bytes[bytes.length - 1];
       bytes = bytes.subarray(0, bytes.length - 1);
     }
-    if (!bytes.length) return;
+    if (!bytes.length) return null;
     const n = bytes.length / 2;
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const buf = this.ctx.createBuffer(1, n, 24000);
@@ -37,10 +38,22 @@ export class PcmPlayer {
     const now = this.ctx.currentTime;
     // starting fresh (nothing queued): a small lead absorbs network jitter between chunks
     if (this.playHead < now) this.playHead = now + 0.12;
-    src.start(this.playHead);
+    const startsAt = this.playHead;
+    src.start(startsAt);
     this.playHead += buf.duration;
     this.sources.push(src);
     src.onended = () => (this.sources = this.sources.filter((s) => s !== src));
+    return startsAt;
+  }
+
+  /** Milliseconds from now until AudioContext time t. */
+  msUntil(t: number) {
+    return Math.max(0, (t - this.ctx.currentTime) * 1000);
+  }
+
+  /** Milliseconds until everything queued so far has finished playing. */
+  get msUntilDone() {
+    return this.msUntil(this.playHead);
   }
 
   get playing() {

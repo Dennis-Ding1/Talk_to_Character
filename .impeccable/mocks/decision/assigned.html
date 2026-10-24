@@ -1,0 +1,46 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>House Lights</title>
+<style>
+  html,body{margin:0;width:1440px;height:900px;overflow:hidden;background:#2b0a10;font-family:"Hanken Grotesk",system-ui,sans-serif;color:#e9e6de}
+  .room{position:absolute;inset:0;background:radial-gradient(120% 90% at 35% 45%,#6a1826 0%,#4a101b 45%,#2b0a10 100%)}
+  .top{position:absolute;left:40px;top:26px;right:40px;display:flex;align-items:baseline;gap:28px}
+  .mark{font-family:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;font-size:30px;letter-spacing:.06em;text-transform:uppercase}
+  .sw{margin-left:auto;display:flex;gap:6px}.sw span{border:1px solid rgba(233,230,222,.35);padding:6px 14px;border-radius:2px;font-size:14px}
+  .sw span.on{background:#e9e6de;color:#2b0a10}
+  .screen{position:absolute;left:40px;top:92px;width:900px;height:506px;background:linear-gradient(160deg,#3d4a52,#1a2228 60%,#0e1417);box-shadow:0 0 0 10px #1c060a,0 30px 80px rgba(0,0,0,.6)}
+  .screen:after{content:"";position:absolute;inset:0;background:rgba(10,4,6,.35)}
+  .spot{position:absolute;left:520px;top:110px;width:190px;height:190px;border-radius:50%;box-shadow:0 0 0 2px #f1c27d,0 0 0 2000px rgba(0,0,0,.38);z-index:2}
+  .spot2{position:absolute;left:170px;top:150px;width:150px;height:150px;border-radius:50%;border:2px dashed rgba(233,230,222,.6);z-index:2}
+  .strip{position:absolute;left:40px;top:626px;width:900px;height:46px;display:flex;align-items:center;gap:14px}
+  .lived{height:6px;width:560px;background:#e9e6de}.dark{height:6px;flex:1;background:rgba(233,230,222,.14)}
+  .tc{font-family:ui-monospace,monospace;font-size:26px;color:#f1c27d}
+  .nyet{font-family:"Big Shoulders Display",Impact,sans-serif;font-size:24px;letter-spacing:.12em;text-transform:uppercase;color:rgba(233,230,222,.45)}
+  .chapters{position:absolute;left:40px;top:700px;display:flex;gap:10px}.chapters span{border:1px solid rgba(233,230,222,.25);padding:10px 18px;font-size:15px}
+  .row{position:absolute;right:0;top:0;bottom:0;width:440px;background:#5a1420;box-shadow:-30px 0 60px rgba(0,0,0,.45)}
+  .portrait{height:400px;background:linear-gradient(180deg,#8a7a6c,#3c2f2a 70%,#5a1420)}
+  .name{position:absolute;left:32px;top:300px;font-family:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;font-size:76px;line-height:.9;text-transform:uppercase;letter-spacing:.01em}
+  .live{position:absolute;left:32px;top:376px;display:flex;gap:8px;align-items:center;font-size:15px;color:#f1c27d}.live i{width:9px;height:9px;border-radius:50%;background:#f1c27d}
+  .inter{margin:30px 32px 0;padding:14px 0;border-top:1px solid rgba(233,230,222,.25);border-bottom:1px solid rgba(233,230,222,.25);text-align:center;font-family:"Big Shoulders Display",Impact,sans-serif;font-size:26px;letter-spacing:.14em;text-transform:uppercase}
+  .line{margin:22px 32px 0;font-size:24px;line-height:1.35}
+  .line.dim{color:rgba(233,230,222,.4)}
+  .you{margin:22px 32px 0;text-align:right;font-size:18px;color:rgba(233,230,222,.75)}
+  .comp{position:absolute;left:32px;right:32px;bottom:28px;display:flex;gap:12px;align-items:center}
+  .field{flex:1;height:54px;border:1px solid rgba(233,230,222,.35)}
+  .mic{width:64px;height:64px;border-radius:50%;background:#e9e6de}
+</style></head><body>
+<div class="room"></div>
+<div class="top"><div class="mark">Talk to Character</div><div class="sw"><span class="on">Present</span><span>Omniscient</span></div><div class="sw" style="margin-left:0"><span class="on">Voice</span><span>Lip-sync</span></div></div>
+<div class="screen"></div><div class="spot"></div><div class="spot2"></div>
+<div class="strip"><span class="tc">1:23:04</span><div class="lived"></div><div class="dark"></div><span class="nyet">Not yet</span></div>
+<div class="chapters"><span>The Test</span><span>The Hearing</span><span>Kitty</span><span>Strauss</span></div>
+<aside class="row">
+  <div class="portrait"></div>
+  <div class="name">J. Robert<br>Oppenheimer</div>
+  <div class="live"><i></i>Speaking</div>
+  <div class="inter">It is 1943 for him</div>
+  <div class="you">Did the bomb work?</div>
+  <div class="line">It hasn't happened yet. We're still building it out here in the desert.</div>
+  <div class="line dim">Ask me again in two years.</div>
+  <div class="comp"><div class="field"></div><div class="mic"></div></div>
+</aside>
+</body></html>

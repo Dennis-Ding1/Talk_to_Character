@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../lib/api";
+import { Icon } from "./Icon";
 import type { Character, FaceCrop } from "../types";
 
 interface Props {
@@ -39,19 +40,20 @@ export function CharacterPicker({ movieId, t, characters, hoveredId, onHover, on
   const others = characters.filter((c) => !c.look_url);
 
   return (
-    <div className="picker">
-      <div className="picker-head">
-        <span>
-          {askFaceFor ? `Which one is ${askFaceFor.name}?` : "Click a face on screen, or pick someone:"}
-        </span>
-        <button
-          className="ghost"
-          onClick={askFaceFor ? () => setAskFaceFor(null) : onClose}
-          aria-label={askFaceFor ? "back" : "close"}
-        >
-          {askFaceFor ? "←" : "✕"}
-        </button>
-      </div>
+    <div className={`picker ${askFaceFor ? "asking" : ""}`} role="group" aria-label="Who do you want to talk to?">
+      {/* fallback flow only (no face index): which of these faces is the character you picked */}
+      {askFaceFor && (
+        <div className="picker-head">
+          <h2 className="picker-title">Which one is {askFaceFor.name}?</h2>
+        </div>
+      )}
+      <button
+        className="ghost picker-close"
+        onClick={askFaceFor ? () => setAskFaceFor(null) : onClose}
+        aria-label={askFaceFor ? "Back" : "Close"}
+      >
+        <Icon name={askFaceFor ? "back" : "close"} />
+      </button>
 
       {!askFaceFor && (
         <>
@@ -65,13 +67,13 @@ export function CharacterPicker({ movieId, t, characters, hoveredId, onHover, on
                 onMouseLeave={() => onHover?.(null)}
               >
                 <img src={c.look_url!} alt="" />
-                <span>{c.name}</span>
+                <span className="lockup">{c.name}</span>
               </button>
             ))}
           </div>
           {others.length > 0 && (
             <div className="picker-list small-list">
-              {withLook.length > 0 && <span className="muted">Also in this scene:</span>}
+              {withLook.length > 0 && <span className="row-label">Also in this scene</span>}
               {others.map((c) => (
                 <button key={c.id} className="picker-item" onClick={() => pick(c)}>
                   {c.face_image ? (
@@ -89,7 +91,7 @@ export function CharacterPicker({ movieId, t, characters, hoveredId, onHover, on
 
       {askFaceFor && (
         <div className="picker-list">
-          {faces === null && <div className="muted">Finding faces on screen…</div>}
+          {faces === null && <div className="picker-sub">Finding faces on screen…</div>}
           {faces?.map((f) => (
             <button key={f.id} className="picker-item face" onClick={() => onPick(askFaceFor, f)}>
               <img src={f.url} alt="" />

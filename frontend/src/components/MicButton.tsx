@@ -1,3 +1,5 @@
+import { Icon } from "./Icon";
+
 interface Props {
   listening: boolean;
   disabled?: boolean;
@@ -14,8 +16,10 @@ export function MicButton({ listening, disabled, onStart, onStop }: Props) {
       disabled={disabled}
       onClick={listening ? onStop : onStart}
       aria-pressed={listening}
+      aria-label={listening ? "Stop recording and send" : "Speak"}
+      title={listening ? "Tap to send" : "Tap to speak"}
     >
-      {listening ? "● Recording — tap to send" : "🎙 Speak"}
+      <Icon name={listening ? "stop" : "mic"} size={22} />
     </button>
   );
 }

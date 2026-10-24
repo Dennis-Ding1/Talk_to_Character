@@ -6,7 +6,7 @@ import type { Character, FaceCrop, OutputMode } from "../types";
 export interface AvatarHandle {
   /** A new reply to speak. If the previous reply is still playing, it keeps talking until this one
    *  is ready, then this one cross-fades over it (no silent gap). */
-  drive: (d: { text?: string; audio_b64?: string }) => void;
+  drive: (d: { text?: string; audio_b64?: string }, onShown?: () => void) => void;
   /** The user took the turn: forget replies that haven't started yet; whatever is speaking now
    *  carries on until the next reply is ready (see drive). */
   interrupt: () => void;
@@ -53,7 +53,14 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
 
   const show = (slot: 0 | 1, on: boolean) => setShown((s) => (slot === 0 ? [on, s[1]] : [s[0], on]));
 
-  const start = async (body: { text?: string; audio_b64?: string }) => {
+  // onShown: called once, when this clip's first frame is on screen, or when it fails / is dropped
+  const start = async (body: { text?: string; audio_b64?: string }, onShown?: () => void) => {
+    let shownCalled = false;
+    const shown = () => {
+      if (shownCalled) return;
+      shownCalled = true;
+      onShown?.();
+    };
     // only the newest reply matters: a reply that hasn't started playing yet is dropped
     pending.current?.abort();
     const ctrl = new AbortController();
@@ -83,6 +90,7 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
           setTop(slot);
           show(slot, true);
           onPlayingRef.current?.(true);
+          shown(); // the lips are moving: now the subtitle may appear
           if (prev !== null && prev !== slot) {
             window.setTimeout(() => {
               talk[prev].current?.pause();
@@ -95,6 +103,7 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
     } catch (e) {
       if (!ctrl.signal.aborted) setErr(String(e));
     } finally {
+      shown(); // failed or dropped before it started: show the words anyway
       if (playingSlot.current === slot && !ctrl.signal.aborted) {
         // finished speaking: fade out to the idle loop (unless a newer reply already took over)
         playingSlot.current = null;
@@ -106,8 +115,8 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
   };
 
   useImperativeHandle(ref, () => ({
-    drive: (d) => {
-      void start(d);
+    drive: (d, onShown) => {
+      void start(d, onShown);
     },
     interrupt: () => {
       pending.current?.abort(); // a reply that hasn't started playing is obsolete now

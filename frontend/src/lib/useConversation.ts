@@ -15,8 +15,9 @@ interface Args {
   t: number;
   mode: OutputMode;
   knowledge: KnowledgeMode;
-  /** lip_sync mode: called with each finished reply, to render as a talking-avatar clip. */
-  onAvatar?: (drive: { text?: string; audio_b64?: string }) => void;
+  /** lip_sync mode: called with each finished reply, to render as a talking-avatar clip.
+   *  Call onShown once the clip starts moving (or fails): that's when the subtitle appears. */
+  onAvatar?: (drive: { text?: string; audio_b64?: string }, onShown: () => void) => void;
   /** the user took the turn: stop anything the avatar is still saying */
   onInterrupt?: () => void;
 }
@@ -27,6 +28,8 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<SessionResponse | null>(null);
+  /** sentences written but not spoken yet (being spoiler-checked / synthesised); never their text */
+  const [pending, setPending] = useState(0);
 
   const rt = useRef<RealtimeSession>();
   const mic = useRef<Mic>();
@@ -71,11 +74,13 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
       onSpoken: (text, _rewritten, id) => {
         const prev = spokenText.current.get(id) ?? "";
         spokenText.current.set(id, prev ? `${prev} ${text}` : text);
+        setPending((n) => Math.max(0, n - 1));
         upsert(id, "assistant", prev ? ` ${text}` : text, true);
       },
       onStart: () => setStatus("speaking"),
       onIdle: () => {
         saveSpoken();
+        setPending(0);
         setStatus((s) => (s === "listening" ? s : "ready"));
       },
     });
@@ -101,19 +106,37 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
           if (mode === "lip_sync") return; // spoken as one clip when complete (see onAssistantDone)
           let c = chunkers.current.get(id);
           if (!c) {
-            c = new SentenceChunker((sentence) => speech.current?.enqueue(sentence, id));
+            c = new SentenceChunker((sentence) => {
+              setPending((n) => n + 1);
+              speech.current?.enqueue(sentence, id);
+            });
             chunkers.current.set(id, c);
           }
           c.push(d);
         },
         onAssistantDone: (id, text) => {
           if (mode === "lip_sync") {
-            // check the whole reply, then show it and let the avatar speak it
-            void api.check({ ...base, text, question: lastQuestion.current }).then(({ text: safe }) => {
-              upsert(id, "assistant", safe);
-              void api.saveTurn(movieId, characterId, knowledge, "assistant", safe, t);
-              onAvatarRef.current?.({ text: safe });
-            });
+            // check the whole reply, let the avatar speak it, and show the words once its lips move
+            setPending(1);
+            const settle = () => {
+              setPending(0);
+              setStatus((s) => (s === "listening" ? s : "ready"));
+            };
+            void api
+              .check({ ...base, text, question: lastQuestion.current })
+              .then(({ text: safe }) => {
+                let shown = false;
+                const reveal = () => {
+                  if (shown) return;
+                  shown = true;
+                  settle();
+                  upsert(id, "assistant", safe);
+                  void api.saveTurn(movieId, characterId, knowledge, "assistant", safe, t);
+                };
+                if (onAvatarRef.current) onAvatarRef.current({ text: safe }, reveal);
+                else reveal();
+              })
+              .catch(settle);
             return;
           }
           chunkers.current.get(id)?.flush();
@@ -174,6 +197,7 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
   const interrupt = useCallback(() => {
     speech.current?.stop();
     chunkers.current.clear();
+    setPending(0);
     player.current?.stop();
     onInterruptRef.current?.();
     if (responding.current) {
@@ -235,5 +259,5 @@ export function useConversation({ movieId, characterId, t, mode, knowledge, onAv
     [movieId, characterId, t, knowledge, upsert, interrupt, recallNotes],
   );
 
-  return { messages, status, error, session, startMic, stopMic, sendText };
+  return { messages, status, error, session, pending, startMic, stopMic, sendText };
 }

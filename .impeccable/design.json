@@ -1,0 +1,410 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-24T02:46:16+00:00",
+  "title": "Design System: Talk to Character",
+  "extensions": {
+    "colorMeta": {
+      "velvet-deep": {
+        "role": "neutral",
+        "displayName": "House Down",
+        "canonical": "oklch(16.4% 0.040 7.2)",
+        "tonalRamp": [
+          "#1c060b",
+          "#2a0910",
+          "#360c15",
+          "#4a111c",
+          "#5e1724",
+          "#884e54",
+          "#cb9499",
+          "#ffe4e7"
+        ]
+      },
+      "velvet-sunk": {
+        "role": "neutral",
+        "displayName": "The Sunk Seat",
+        "tonalRamp": [
+          "#1c060b",
+          "#2a0910",
+          "#360c15",
+          "#4a111c",
+          "#5e1724",
+          "#884e54",
+          "#cb9499",
+          "#ffe4e7"
+        ]
+      },
+      "velvet-panel": {
+        "role": "neutral",
+        "displayName": "The Front Row",
+        "tonalRamp": [
+          "#1c060b",
+          "#2a0910",
+          "#360c15",
+          "#4a111c",
+          "#5e1724",
+          "#884e54",
+          "#cb9499",
+          "#ffe4e7"
+        ]
+      },
+      "velvet": {
+        "role": "neutral",
+        "displayName": "House Up",
+        "canonical": "oklch(28.0% 0.086 13.5)",
+        "tonalRamp": [
+          "#1c060b",
+          "#2a0910",
+          "#360c15",
+          "#4a111c",
+          "#5e1724",
+          "#884e54",
+          "#cb9499",
+          "#ffe4e7"
+        ]
+      },
+      "velvet-fold": {
+        "role": "neutral",
+        "displayName": "Velvet Fold",
+        "tonalRamp": [
+          "#1c060b",
+          "#2a0910",
+          "#360c15",
+          "#4a111c",
+          "#5e1724",
+          "#884e54",
+          "#cb9499",
+          "#ffe4e7"
+        ]
+      },
+      "silver": {
+        "role": "neutral",
+        "displayName": "Projector Silver",
+        "canonical": "oklch(93.6% 0.011 76.6)",
+        "tonalRamp": [
+          "#0c0b09",
+          "#272521",
+          "#45413d",
+          "#64615b",
+          "#86827c",
+          "#a8a49f",
+          "#ccc9c4",
+          "#f0eeeb"
+        ]
+      },
+      "text-2": {
+        "role": "neutral",
+        "displayName": "Rose Smoke"
+      },
+      "text-3": {
+        "role": "neutral",
+        "displayName": "Dusty Claret",
+        "canonical": "oklch(68.0% 0.040 22.2)",
+        "tonalRamp": [
+          "#120808",
+          "#302020",
+          "#513c3a",
+          "#755958",
+          "#987a78",
+          "#b89e9c",
+          "#d9c3c2",
+          "#fbeae9"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline"
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline"
+      },
+      "gold": {
+        "role": "primary",
+        "displayName": "House-Light Gold",
+        "canonical": "oklch(84.1% 0.105 76.7)",
+        "tonalRamp": [
+          "#160700",
+          "#362000",
+          "#5a3b00",
+          "#80590f",
+          "#a37a38",
+          "#c29f6a",
+          "#e2c49a",
+          "#ffebca"
+        ]
+      },
+      "gold-ink": {
+        "role": "primary",
+        "displayName": "Gold Ink"
+      },
+      "danger": {
+        "role": "error",
+        "displayName": "Warning Coral",
+        "canonical": "oklch(78.6% 0.125 30.9)",
+        "tonalRamp": [
+          "#1e0100",
+          "#43120b",
+          "#6c2a20",
+          "#984437",
+          "#bd6657",
+          "#db8e80",
+          "#f7b7ab",
+          "#ffe1d7"
+        ]
+      },
+      "screen-black": {
+        "role": "neutral",
+        "displayName": "Screen Black"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Name Lockup",
+        "purpose": "The character's name over the portrait's lower edge."
+      },
+      "headline": {
+        "displayName": "Picker Question",
+        "purpose": "The question under the screen once paused."
+      },
+      "title": {
+        "displayName": "Wordmark",
+        "purpose": "The marquee wordmark; siblings at 17-19px for the Talk button, spot names, card lockups."
+      },
+      "intertitle": {
+        "displayName": "Intertitle",
+        "purpose": "Machinery states and story-time anchors between hairlines."
+      },
+      "dialogue": {
+        "displayName": "Dialogue",
+        "purpose": "The character's spoken lines, max 34em."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prompts, suggestions, user lines, chrome text."
+      },
+      "label": {
+        "displayName": "Marquee Label",
+        "purpose": "Names a control, group or speaker in place; never decorative above a headline."
+      },
+      "timecode": {
+        "displayName": "Timecode",
+        "purpose": "Every timecode, tabular numerals."
+      }
+    },
+    "shadows": [
+      {
+        "name": "screen-throw",
+        "value": "0 24px 60px -12px rgba(0,0,0,0.75), 0 2px 6px rgba(0,0,0,0.5)",
+        "purpose": "The screen only."
+      },
+      {
+        "name": "front-row",
+        "value": "-18px 0 48px -12px rgba(0,0,0,0.55)",
+        "purpose": "Left edge of the conversation panel on desktop."
+      },
+      {
+        "name": "pressable-lift",
+        "value": "0 10px 30px -6px rgba(0,0,0,0.7)",
+        "purpose": "Talk button over the film (mic uses 0 8px 20px -6px rgba(0,0,0,0.6))."
+      },
+      {
+        "name": "follow-spot",
+        "value": "0 0 0 200vmax rgba(8,2,4,0.62), 0 0 60px 20px rgba(8,2,4,0.5) inset",
+        "purpose": "Hovered or chosen spot darkens everything outside its circle."
+      },
+      {
+        "name": "sticky-composer",
+        "value": "0 -12px 24px -8px rgba(20,3,7,0.6)",
+        "purpose": "Sticky composer under 900px."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "All theatrical transitions and entrances."
+      },
+      {
+        "name": "house",
+        "value": "700ms",
+        "purpose": "House lights up/down: room colour, sconce gradient, film dim, lived fill."
+      },
+      {
+        "name": "take-seat",
+        "value": "650ms, translateX(28px) to 0, fade",
+        "purpose": "Front-row panel entering."
+      },
+      {
+        "name": "spot-on",
+        "value": "600ms, scale(1.25) to 1, fade, staggered 90ms",
+        "purpose": "Follow-spots landing on faces."
+      },
+      {
+        "name": "rise",
+        "value": "350-500ms, translateY(6px) to 0, fade",
+        "purpose": "Dialogue lines, lived strip, picker row (120ms delay)."
+      },
+      {
+        "name": "breathe",
+        "value": "0.8-1.4s ease-in-out infinite, opacity to 0.45",
+        "purpose": "Waiting states: finding faces, thinking, connecting, listening dot."
+      },
+      {
+        "name": "ring",
+        "value": "1.4s ease-out infinite, scale(1.55), fade",
+        "purpose": "Recording mic ring."
+      },
+      {
+        "name": "scan",
+        "value": "1.6s linear infinite",
+        "purpose": "Redacted shimmer bars for lines under spoiler check."
+      },
+      {
+        "name": "control",
+        "value": "0.18s",
+        "purpose": "Button colour/border transitions."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none; transition: none",
+        "purpose": "All motion removed under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stack",
+        "value": "900px",
+        "purpose": "Below this the panel stacks under a 16:9 screen and the composer becomes sticky."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Talk Button",
+      "kind": "button",
+      "refersTo": "talk-button",
+      "description": "The silver slab over the paused film that opens the conversation.",
+      "html": "<button class=\"ds-talk\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"square\" stroke-linejoin=\"miter\"><path d=\"M5 5v14M9.5 5v14\"/><circle cx=\"17\" cy=\"12\" r=\"4\"/></svg>Talk to a character</button>",
+      "css": ".ds-talk{display:flex;align-items:center;gap:10px;border:none;border-radius:0;background:#eee9e2;color:#1c060b;font-family:'Big Shoulders Display','Arial Narrow',sans-serif;text-transform:uppercase;font-weight:800;font-size:19px;letter-spacing:0.06em;padding:10px 18px 9px 14px;box-shadow:0 10px 30px -6px rgba(0,0,0,0.7);cursor:pointer;transition:background-color .18s}.ds-talk:hover{background:#fff}.ds-talk:focus-visible{outline:2px solid #eee9e2;outline-offset:3px}"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Squared hairline button used for secondary actions.",
+      "html": "<button class=\"ds-btn\">Change face</button>",
+      "css": ".ds-btn{background:none;border:1px solid rgba(238,233,226,0.32);border-radius:0;color:#eee9e2;padding:8px 14px;font-family:'Hanken Grotesk Variable','Hanken Grotesk',system-ui,sans-serif;font-size:14px;cursor:pointer;transition:border-color .18s}.ds-btn:hover{border-color:#eee9e2}.ds-btn:focus-visible{outline:2px solid #eee9e2;outline-offset:3px}.ds-btn:disabled{opacity:.38}"
+    },
+    {
+      "name": "Segmented Switch",
+      "kind": "nav",
+      "refersTo": "segmented-switch",
+      "description": "Squared two-way switch for knowledge and avatar modes, with its marquee label.",
+      "html": "<div class=\"ds-ctl\"><span class=\"ds-ctl-label\">They know</span><div class=\"ds-seg\"><button class=\"on\">Up to now</button><button>The ending</button></div></div>",
+      "css": ".ds-ctl{display:flex;align-items:center;gap:10px;background:#4a111c;padding:12px}.ds-ctl-label{font-family:'Big Shoulders Display','Arial Narrow',sans-serif;text-transform:uppercase;font-weight:600;font-size:15px;letter-spacing:0.12em;color:#b08f8d}.ds-seg{display:inline-flex;border:1px solid rgba(238,233,226,0.32)}.ds-seg button{background:none;border:none;border-radius:0;padding:6px 14px;font-family:'Hanken Grotesk Variable','Hanken Grotesk',system-ui,sans-serif;font-size:14px;color:#d9bfbb;cursor:pointer;transition:background-color .18s,color .18s}.ds-seg button+button{border-left:1px solid rgba(238,233,226,0.32)}.ds-seg button:hover:not(.on){color:#eee9e2;background:rgba(238,233,226,0.06)}.ds-seg button.on{background:#eee9e2;color:#1c060b;font-weight:600}.ds-seg button:focus-visible{outline:2px solid #eee9e2;outline-offset:3px}"
+    },
+    {
+      "name": "Composer",
+      "kind": "input",
+      "refersTo": "composer-field",
+      "description": "Sunk squared field with inline send arrow; border goes silver on focus.",
+      "html": "<div class=\"ds-field\"><input placeholder=\"Ask Robert anything\"><button aria-label=\"Send\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"square\" stroke-linejoin=\"miter\"><path d=\"M5 12h13M13 6l6 6-6 6\"/></svg></button></div>",
+      "css": ".ds-field{display:flex;align-items:center;background:#2a0910;border:1px solid rgba(238,233,226,0.32);transition:border-color .18s;width:320px}.ds-field:focus-within{border-color:#eee9e2}.ds-field input{flex:1;min-width:0;border:none;background:none;outline:none;padding:13px 14px;color:#eee9e2;caret-color:#f2c27a;font-family:'Hanken Grotesk Variable','Hanken Grotesk',system-ui,sans-serif;font-size:15px}.ds-field input::placeholder{color:#b08f8d}.ds-field button{width:44px;height:44px;display:grid;place-items:center;background:none;border:none;color:#eee9e2;cursor:pointer}"
+    },
+    {
+      "name": "Mic",
+      "kind": "button",
+      "refersTo": "mic",
+      "description": "56px round push-to-talk; gold with an expanding ring while recording.",
+      "html": "<div style=\"display:flex;gap:24px\"><button class=\"ds-mic\" aria-label=\"Talk\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"square\" stroke-linejoin=\"miter\"><rect x=\"9\" y=\"3\" width=\"6\" height=\"11\" rx=\"3\"/><path d=\"M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7\"/></svg></button><button class=\"ds-mic on\" aria-label=\"Stop\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"square\" stroke-linejoin=\"miter\"><rect x=\"9\" y=\"3\" width=\"6\" height=\"11\" rx=\"3\"/><path d=\"M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7\"/></svg></button></div>",
+      "css": ".ds-mic{position:relative;width:56px;height:56px;border-radius:50%;border:none;display:grid;place-items:center;background:#eee9e2;color:#1c060b;box-shadow:0 8px 20px -6px rgba(0,0,0,0.6);cursor:pointer;transition:background-color .18s}.ds-mic:hover{background:#fff}.ds-mic:focus-visible{outline:2px solid #eee9e2;outline-offset:3px}.ds-mic.on{background:#f2c27a;color:#2b1405}.ds-mic.on::after{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid #f2c27a;animation:ds-ring 1.4s cubic-bezier(0.16,1,0.3,1) infinite}@keyframes ds-ring{to{transform:scale(1.55);opacity:0}}"
+    },
+    {
+      "name": "Intertitle Card",
+      "kind": "custom",
+      "refersTo": "intertitle-card",
+      "description": "Machinery states and story-time anchors printed like a silent-film title card.",
+      "html": "<div class=\"ds-room\"><p class=\"ds-inter\">It is 1939</p><p class=\"ds-inter quiet\">Thinking</p></div>",
+      "css": ".ds-room{background:#360c15;padding:18px 22px;display:flex;flex-direction:column;gap:16px;width:360px}.ds-inter{position:relative;margin:0;padding:11px 8px 9px;text-align:center;font-family:'Big Shoulders Display','Arial Narrow',sans-serif;text-transform:uppercase;font-weight:600;font-size:20px;line-height:1.1;letter-spacing:0.14em;color:#eee9e2;border-top:1px solid rgba(238,233,226,0.32);border-bottom:1px solid rgba(238,233,226,0.32)}.ds-inter::before,.ds-inter::after{content:'';position:absolute;left:0;right:0;height:1px;background:rgba(238,233,226,0.16)}.ds-inter::before{top:3px}.ds-inter::after{bottom:3px}.ds-inter.quiet{font-size:16px;color:#b08f8d;border-color:rgba(238,233,226,0.16)}.ds-inter.quiet::before,.ds-inter.quiet::after{display:none}"
+    },
+    {
+      "name": "Follow-spot",
+      "kind": "custom",
+      "refersTo": "follow-spot",
+      "description": "Dashed circle on a recognised face; solid with surrounding falloff when hovered or chosen.",
+      "html": "<div class=\"ds-frame\"><button class=\"ds-spot\" style=\"left:40px\"><span>Kitty</span></button><button class=\"ds-spot\" style=\"left:190px\"><span>Robert</span></button></div>",
+      "css": ".ds-frame{position:relative;width:340px;height:190px;background:#1a1414;overflow:hidden}.ds-spot{position:absolute;top:36px;width:96px;height:96px;padding:0;border-radius:50%;border:2px dashed rgba(238,233,226,0.95);background:radial-gradient(circle,rgba(255,240,220,0.16) 0%,rgba(255,240,220,0.05) 60%,transparent 72%);cursor:pointer;transition:border-color .2s,box-shadow .5s cubic-bezier(0.16,1,0.3,1)}.ds-spot:hover,.ds-spot:focus-visible{z-index:1;outline:none;border:2px solid #eee9e2;box-shadow:0 0 0 200vmax rgba(8,2,4,0.62),0 0 60px 20px rgba(8,2,4,0.5) inset}.ds-spot span{position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);white-space:nowrap;background:#1c060b;color:#eee9e2;font-family:'Big Shoulders Display','Arial Narrow',sans-serif;text-transform:uppercase;font-weight:800;font-size:18px;letter-spacing:0.05em;padding:4px 10px 3px}.ds-spot:hover span,.ds-spot:focus-visible span{background:#eee9e2;color:#1c060b}"
+    },
+    {
+      "name": "Lived Strip",
+      "kind": "custom",
+      "refersTo": "lived-strip",
+      "description": "Paused timeline: gold for what the character has lived, dark for what they have not.",
+      "html": "<div class=\"ds-lived\"><span class=\"tc\">5:38</span><div class=\"track\"><div class=\"fill\"></div></div><span class=\"lbl\">Not yet</span></div>",
+      "css": ".ds-lived{display:flex;align-items:center;gap:14px;width:520px;background:#4a111c;padding:12px 16px}.ds-lived .tc{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:15px;color:#f2c27a;font-variant-numeric:tabular-nums}.ds-lived .track{flex:1;height:4px;background:rgba(238,233,226,0.14)}.ds-lived .fill{width:38%;height:100%;background:#f2c27a}.ds-lived .lbl{font-family:'Big Shoulders Display','Arial Narrow',sans-serif;text-transform:uppercase;font-weight:600;font-size:15px;letter-spacing:0.16em;color:#b08f8d}"
+    },
+    {
+      "name": "Character Card",
+      "kind": "card",
+      "refersTo": "character-card",
+      "description": "Squared portrait card in the picker with a marquee name lockup.",
+      "html": "<button class=\"ds-card\"><div class=\"ph\">R</div><span>J. Robert Oppenheimer</span></button>",
+      "css": ".ds-card{width:116px;padding:0;border:none;border-radius:0;display:flex;flex-direction:column;align-items:flex-start;background:#2a0910;outline:1px solid rgba(238,233,226,0.16);outline-offset:-1px;cursor:pointer;text-align:left}.ds-card .ph{width:116px;height:132px;display:grid;place-items:center;background:linear-gradient(180deg,#5e1724,#2a0910);font-family:'Big Shoulders Display','Arial Narrow',sans-serif;text-transform:uppercase;font-weight:800;font-size:56px;color:#b08f8d}.ds-card span{display:block;width:100%;padding:8px 10px 7px;font-family:'Big Shoulders Display','Arial Narrow',sans-serif;text-transform:uppercase;font-weight:800;font-size:17px;line-height:0.95;letter-spacing:0.03em;color:#eee9e2}.ds-card:hover,.ds-card:focus-visible{outline:2px solid #eee9e2}"
+    }
+  ],
+  "narrative": {
+    "northStar": "House Lights",
+    "overview": "The interface is the auditorium around a film, not a player with a sidebar. While the film plays the room is almost gone: near-black wine, a quiet marquee, the screen. Pausing brings the house lights up. The claret velvet room fades in over 700ms, the frame dims, follow-spots land on the faces in the paused frame, and the chosen character takes a seat in the front-row panel at the right. Every surface is either room (velvet), screen (projector silver), or light (follow-spots and house-light gold).\n\nDensity is low and theatrical. Chrome is hairlines and condensed marquee caps; there are no cards-with-shadows-and-radius, no bubbles, no badges. The machinery's states (finding faces, taking their seat, thinking, the story year) are printed as silent-film intertitle cards set between double hairlines. Replies arrive dim and light to full silver as they are spoken; unspoken lines still under spoiler check appear as redacted shimmer bars, never their text.\n\nThe system rejects the category default of a streaming player with a dark chat sidebar of rounded bubbles and a circular avatar. The portrait is full-bleed and square-cornered, with the name set huge over its lower edge.",
+    "keyCharacteristics": [
+      "Three materials only: velvet room, silver screen, gold live light.",
+      "Two states of the room, driven by `data-house=\"up|down\"`: paused (velvet, sconce gradient, dimmed film) and playing (velvet-deep, chrome recedes).",
+      "Tall condensed marquee caps for names, titles, labels and intertitles; plain grotesk for everything read; mono for timecodes.",
+      "Square corners everywhere; circles are reserved for light and voice (follow-spots, the mic, the live dot).",
+      "Motion is slow, eased and theatrical (700ms house transition, `cubic-bezier(0.16, 1, 0.3, 1)`), and fully removed under reduced motion."
+    ],
+    "rules": [
+      {
+        "name": "The House Light Rule",
+        "body": "Gold marks what is live now: speaking, recording, the lived span of the film. Never use it for decoration, headings, hover or brand.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Screen Rule",
+        "body": "Silver is the only cool, bright colour. A silver-filled surface means \"this is the thing to press\" or \"this is selected\"; there is never more than one per control group.",
+        "section": "colors"
+      },
+      {
+        "name": "The Marquee Caps Rule",
+        "body": "Big Shoulders is always uppercase and always tracked (0.01em at display size up to 0.16em at label size). Reading text is never set in it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Label Earns Its Place Rule",
+        "body": "A marquee label names the control, group or speaker beside it. It never floats above a headline as decoration.",
+        "section": "typography"
+      },
+      {
+        "name": "The Light Lands Rule",
+        "body": "Emphasis is made by darkening the surroundings (dimmed film, follow-spot falloff, unlit lines), not by glowing the subject.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** drive the room from one attribute: velvet-deep while playing, velvet plus the sconce gradient and a dimmed film (brightness 0.78, saturate 0.85) once paused, over 700ms.",
+      "**Do** keep gold for live state only: speaking, recording, the lived span and its timecode.",
+      "**Do** print machinery states as intertitle cards between hairlines, in marquee caps.",
+      "**Do** keep the \"AI voice & likeness\" tag visible wherever the avatar appears.",
+      "**Do** use mono with tabular numerals for every timecode.",
+      "**Do** strip all animation and transition under `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "**Don't** round rectangles or use pills; circles are only for spots, the mic and the live dot.",
+      "**Don't** render dialogue as chat bubbles or the character as a round avatar.",
+      "**Don't** add glow halos around controls, text or the portrait; the follow-spot's own faint warm pool is the only cast light, and emphasis comes from darkening what surrounds the subject.",
+      "**Don't** use gold for hover, headings, links or decoration.",
+      "**Don't** set reading text in Big Shoulders, or set Big Shoulders in lowercase.",
+      "**Don't** show the text of a line that has not passed the spoiler check.",
+      "**Don't** use status badges; state lives in the intertitle cards and the live line."
+    ]
+  }
+}
