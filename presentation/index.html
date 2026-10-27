@@ -137,6 +137,9 @@
   .curtain.l { left: 0; transform-origin: left center; box-shadow: 30px 0 60px -10px rgba(0, 0, 0, 0.7); }
   .curtain.r { right: 0; transform-origin: right center; box-shadow: -30px 0 60px -10px rgba(0, 0, 0, 0.7); }
   .open.active .curtain.l { transform: translateX(-250px) scaleX(0.5); }
+  /* the cover opens on the first click, not on arrival */
+  #cover.active:not(.s1) .curtain.l, #cover.active:not(.s1) .curtain.r { transform: none; }
+  #cover.active:not(.s1) .house-spot { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
   .open.active .curtain.r { transform: translateX(250px) scaleX(0.5); }
   .closing .curtain.l { transform: translateX(-250px) scaleX(0.5); }
   .closing .curtain.r { transform: translateX(250px) scaleX(0.5); }
@@ -181,16 +184,16 @@
   .cover-title .hero { font-size: 124px; }
   .cover-title .subtitle { margin-top: 0; }
 
-  .s1 .crack path { animation: draw 0.45s ease-out forwards; animation-delay: calc(0.8s + var(--k) * 18ms); }
-  .s1 .crack { animation: gone 0.35s ease-in 1.85s forwards; }
-  .s1 .flash { animation: flash 0.4s ease-out 1.35s; }
-  .s1 .screen-img { animation: gone 0.01s linear 1.48s forwards; }
-  .s1 .shard { animation: fly 1.4s cubic-bezier(0.2, 0.7, 0.3, 1) 1.48s forwards; }
-  .s1 .cover-lived { opacity: 0; }
+  #cover.s2 .crack path { animation: draw 0.45s ease-out forwards; animation-delay: calc(0.8s + var(--k) * 18ms); }
+  #cover.s2 .crack { animation: gone 0.35s ease-in 1.85s forwards; }
+  #cover.s2 .flash { animation: flash 0.4s ease-out 1.35s; }
+  #cover.s2 .screen-img { animation: gone 0.01s linear 1.48s forwards; }
+  #cover.s2 .shard { animation: fly 1.4s cubic-bezier(0.2, 0.7, 0.3, 1) 1.48s forwards; }
+  #cover.s2 .cover-lived { opacity: 0; }
   .stepper > g { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 3.6s ease-in-out infinite; }
-  .s1 .stepper > g { animation-play-state: paused; }
-  .s1 .stepper { transform: none; filter: brightness(1); }
-  .s1 .say, .s1 .cover-title { opacity: 1; transform: none; }
+  #cover.s2 .stepper > g { animation-play-state: paused; }
+  #cover.s2 .stepper { transform: none; filter: brightness(1); }
+  #cover.s2 .say, #cover.s2 .cover-title { opacity: 1; transform: none; }
   .instant .crack path, .instant .crack, .instant .flash, .instant .screen-img, .instant .shard { animation-duration: 0.001s !important; animation-delay: 0s !important; }
   @keyframes draw { to { stroke-dashoffset: 0; } }
   @keyframes gone { to { opacity: 0; } }
@@ -604,7 +607,7 @@
 <div id="stage">
 
 <!-- ============ 01 · cover ============ -->
-<section class="slide curtained open" id="cover" data-steps="1" data-time="20" data-section="">
+<section class="slide curtained open" id="cover" data-steps="2" data-time="20" data-section="">
   <div class="house-spot"></div>
   <div class="cover-stage">
     <div class="screen-frame">
@@ -658,7 +661,7 @@
   <div class="curtain l"></div>
   <div class="curtain r"></div>
   <div class="valance"></div>
-  <aside class="notes">Hi, we're Haochen, Rolland and Yinuo. Imagine you're watching a film, and you hit pause.
+  <aside class="notes">[click] (the curtain opens) Hi, we're Haochen, Rolland and Yinuo. Imagine you're watching a film, and you hit pause.
 [click] The character turns around, breaks through the screen, and talks to you. That's Talk to Character.</aside>
 </section>
 
@@ -676,27 +679,27 @@
   <div class="duel">
     <div class="side bot">
       <p class="label">A generic chatbot</p>
-      <p class="line-you"><span class="cue">You</span>“Did the test work?”</p>
-      <p class="line-them typed" data-text="“Yes. It was a complete success, and a few weeks later it changed the war.”"></p>
-      <p class="intertitle quiet spoil verdict">Knows the whole film</p>
+      <p class="line-you"><span class="cue">You</span>“How do you feel about building the bomb?”</p>
+      <p class="line-them typed" data-text="“With regret. Now I am become Death, the destroyer of worlds.”"></p>
+      <p class="intertitle quiet spoil verdict">Answers with hindsight</p>
     </div>
     <div class="side ours">
       <p class="label">Oppenheimer, paused at <span class="tc ptime-full">00:47:12</span></p>
-      <p class="line-you"><span class="cue">You</span>“Did the test work?”</p>
+      <p class="line-you"><span class="cue">You</span>“How do you feel about building the bomb?”</p>
       <div class="stateline intertitle">
-        <span class="wait thinking">Checking each sentence</span>
+        <span class="wait thinking">Thinking as he is in 1942</span>
         <span class="now">Speaking <span class="bars"><i></i><i></i><i></i><i></i><i></i></span></span>
       </div>
       <div class="answer">
         <div class="checking"><i style="width:94%"></i><i style="width:62%"></i></div>
-        <p class="line-them split">“I can’t tell you that yet. We’ll see.”</p>
+        <p class="line-them split">“Honestly? Excited. If we don’t build it, the Nazis will, and I mean to run it.”</p>
       </div>
-      <p class="intertitle quiet verdict">Not yet · still before the test</p>
+      <p class="intertitle quiet verdict">1942 · ambitious, not yet haunted</p>
     </div>
   </div>
-  <aside class="notes">So why not just use a normal chatbot? Because it plays a character like an actor who has read the whole script.
-[click] Ask it whether the test worked, and it just tells you.
-[click] Ours checks every sentence before it's spoken, so he answers like a man who doesn't know yet.</aside>
+  <aside class="notes">Why not a normal chatbot? It plays a character like an actor who's read the whole script.
+[click] Ask how he feels about building the bomb, and he answers with hindsight, full of regret.
+[click] Ours answers as he is at 47:12: 1942, ambitious, racing the Nazis. What he feels right now, not how it ends.</aside>
 </section>
 
 <!-- ============ 07 · never spoil ============ -->
@@ -987,8 +990,7 @@ Come back to the deck at about 5:40.</aside>
     </div>
     <div class="ticks"><span></span><div class="scale"><span style="left:0%">0</span><span style="left:20%">2 s</span><span style="left:40%">4 s</span><span style="left:60%">6 s</span><span style="left:80%">8 s</span><span style="left:100%">10 s</span></div></div>
   </div>
-  <p class="intertitle key rise" style="--d:1.6s">Voice mode is the default; the lip-synced face is opt-in.</p>
-  <aside class="notes">We measured every call. Realtime's first audio arrives in about 0.4 seconds. The lip-synced face needs about three. So voice comes first, and the face is opt-in.</aside>
+  <aside class="notes">We measured every call. Realtime's first audio arrives in about 0.4 seconds. The lip-synced face needs about three.</aside>
 </section>
 
 <!-- ============ 10 · tradeoff ============ -->
@@ -1015,10 +1017,9 @@ Come back to the deck at about 5:40.</aside>
   <div class="limits">
     <div class="item rise" style="--d:0.35s"><p class="tc">1</p><div><h3>Lip-sync takes time, and emotion takes more</h3><p class="body">The face starts 3–6 s after the reply is written, and TTS 3 emotion tags add 1.5–2.3 s. Realtime audio is the fast fallback, but it can’t take emotion tags.</p></div></div>
     <div class="item rise" style="--d:0.45s"><p class="tc">2</p><div><h3>Animated faces need hand setup</h3><p class="body">Face detection is trained on real people. Each animated character needs its own profile, and its avatar looks less convincing.</p></div></div>
-    <div class="item rise" style="--d:0.55s"><p class="tc">3</p><div><h3>The guard is itself an LLM</h3><p class="body">The time filter is tested, but how often the guard misses a spoiler or blocks a harmless line hasn’t been measured.</p></div></div>
-    <div class="item rise" style="--d:0.65s"><p class="tc">4</p><div><h3>Every new film takes setup</h3><p class="body">Subtitles, ideally a screenplay, LLM summaries that can be wrong, and some hand fixes to who said what.</p></div></div>
+    <div class="item rise" style="--d:0.55s"><p class="tc">3</p><div><h3>Every new film takes setup</h3><p class="body">Subtitles, ideally a screenplay, LLM summaries that can be wrong, and some hand fixes to who said what.</p></div></div>
   </div>
-  <aside class="notes">What's still hard. Lip-sync takes seconds, and longer with emotion tags. Animated faces need hand setup, because face models are trained on real people. The guard is an LLM too, and we haven't measured how often it misses. And every new film takes setup.</aside>
+  <aside class="notes">What's still hard. Lip-sync takes seconds, and longer with emotion tags. Animated faces need hand setup, because face models are trained on real people. And every new film takes setup: subtitles, ideally a screenplay, and a few hand fixes.</aside>
 </section>
 
 <!-- ============ 13 · close ============ -->
@@ -1207,7 +1208,8 @@ Come back to the deck at about 5:40.</aside>
 
   const onStep = {
     cover(s, n) {
-      if (n !== 1) return;
+      if (n === 1) { startClock(s); return; } // curtain opens: the film runs
+      if (n !== 2) return;
       stopClock(s, true);
       // his line, in the cloned voice (Higgs TTS 3), plays as the subtitle types; silent if the file is missing
       later(() => {
@@ -1258,7 +1260,8 @@ Come back to the deck at about 5:40.</aside>
       shown = 0;
     }
     if (s.id === 'spoil') showLayer(s, shown);
-    if (s.id === 'cover' && !full) startClock(s); else clearInterval(clockTimer);
+    clearInterval(clockTimer);
+    if (s.id === 'cover' && !full) setClock(s, 47 * 60); // still, behind the closed curtain
     sweep(s, full);
     reel.style.width = ((i + 1) / slides.length * 100) + '%';
     history.replaceState(null, '', location.search + '#' + (i + 1));
