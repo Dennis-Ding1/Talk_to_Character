@@ -24,6 +24,7 @@ from app.schemas import AvatarRequest
 router = APIRouter(prefix="/api/avatar", tags=["avatar"])
 
 _render_slot = asyncio.Semaphore(1)  # one Higgs Avatar render at a time (account limit)
+SLOT_WAIT_S = 60.0  # how long a reply may wait for the render slot before giving up
 _idle_locks: dict[str, asyncio.Lock] = {}
 
 
@@ -91,7 +92,11 @@ async def avatar_stream(req: AvatarRequest, request: Request):
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-    await _render_slot.acquire()  # released when the stream is fully sent (or fails)
+    # Boson renders one clip at a time per API key. Wait for our turn, but never forever.
+    try:
+        await asyncio.wait_for(_render_slot.acquire(), SLOT_WAIT_S)
+    except asyncio.TimeoutError:
+        raise HTTPException(503, "the avatar renderer is busy, try again in a moment")
     if await request.is_disconnected():  # superseded while waiting in the queue: don't pay for it
         _render_slot.release()
         raise HTTPException(499, "client went away")
@@ -101,20 +106,52 @@ async def avatar_stream(req: AvatarRequest, request: Request):
         _render_slot.release()
         raise
 
-    async def body_iter():
+    # The render is read from Boson in its own task, and the slot is freed as soon as Boson is done
+    # (or fails, or the browser hangs up). The browser reading slowly, or not at all (a closed chat,
+    # a superseded reply), can no longer hold the slot and block every later reply.
+    chunks: asyncio.Queue = asyncio.Queue()
+    released = False
+
+    def release_slot():
+        nonlocal released
+        if not released:
+            released = True
+            _render_slot.release()
+
+    async def pump():
         try:
-            yield first
             async for chunk in stream:
-                yield chunk
+                await chunks.put(chunk)
+        except Exception:  # noqa: BLE001 — the browser just sees the clip end early
+            pass
         finally:
-            # Browser hung up (superseded reply) or done: close the upstream connection right away.
-            # Boson frees its one-render-at-a-time slot as soon as we disconnect (measured), so the
-            # next reply can start rendering immediately.
             try:
                 await asyncio.shield(stream.aclose())
             except BaseException:
                 pass
-            _render_slot.release()
+            release_slot()
+            await chunks.put(None)
+
+    pumping = asyncio.create_task(pump())
+
+    async def body_iter():
+        try:
+            yield first
+            while True:
+                chunk = await chunks.get()
+                if chunk is None:
+                    return
+                yield chunk
+        finally:
+            # browser hung up (closed chat, superseded reply) or done: stop the render right away;
+            # Boson frees its slot as soon as we disconnect (measured)
+            if not pumping.done():
+                pumping.cancel()
+                try:
+                    await asyncio.shield(stream.aclose())
+                except BaseException:
+                    pass
+            release_slot()
 
     return StreamingResponse(body_iter(), media_type="video/mp4")
 

@@ -23,7 +23,14 @@ export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   /** the film has started (played or jumped into): the poster has faded away */
   const [started, setStarted] = useState(false);
-  useEffect(() => setStarted(false), [movie?.id]);
+  useEffect(() => {
+    // another film: nothing from the previous one carries over (paused frame, chosen character)
+    setStarted(false);
+    setPausedAt(null);
+    setTalkingTo(null);
+    setFace(null);
+    setFrameFaces(null);
+  }, [movie?.id]);
   useEffect(() => {
     if (clock.t > 0.05) setStarted(true); // a chapter jump also reveals the frame
   }, [clock.t]);

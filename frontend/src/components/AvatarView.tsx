@@ -145,6 +145,8 @@ export const AvatarView = forwardRef<AvatarHandle, Props>(function AvatarView(
     setErr(null);
     return () => {
       pending.current?.abort();
+      // close every clip's download too: an open stream nobody reads would keep the server busy
+      slotCtrl.current.forEach((c) => c?.abort());
       talk.forEach((v) => v.current?.pause());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
