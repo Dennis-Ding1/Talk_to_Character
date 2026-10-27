@@ -1,0 +1,22 @@
+# Demo video narration. One line = one clip (narration/01.wav, 02.wav, ...); lines starting with # are not read.
+# Generate (from the backend folder):  .venv\Scripts\python scripts\narrate.py say --script scripts\narration.txt
+
+# --- Intro ---
+<|emotion:enthusiasm|>Have you ever wanted to pause a movie and ask a character what they're really thinking?
+That's what we built. Pause any scene, click on a face, and the character talks back, in their own voice, with a face that moves. It all runs on Boson AI's Higgs models.
+
+# --- Up to now ---
+In Up to now mode, the character only knows what has happened so far in the film, so nothing gets spoiled.
+
+# --- Omniscience ---
+In Omniscience mode, the character knows their whole story, so you can ask them what if.
+
+# --- Voice ---
+In Voice mode, you just talk. The character answers in about a second, and you can cut in at any time.
+
+# --- Avatar ---
+In Avatar mode, the reply becomes a talking face, based on how the character looks in that very scene.
+And also, you can ask or listen in different languages.
+
+# --- Transition into the spoiler test ---
+Now I'll ask the same question in both modes, and see how our anti-spoiler works.
