@@ -1,16 +1,16 @@
 ---
 version: 1
 slug: "presentation-index-html"
-primary_target: "presentation/index.html"
+primary_target: "docs/index.html"
 related_targets: []
 ---
 
-# Presentation deck (presentation/index.html)
+# Presentation deck (docs/index.html)
 
 Scope: a 10-minute hackathon pitch deck, 1920×1080 HTML slides, click to advance. Mode: Persuade.
 Audience: Boson AI Higgs hackathon judges on a projector. Job: remember one idea (a character stuck at the pause) and believe the anti-spoiler mechanism is real. Action: score it; ask about it.
 Content: English slides, English speaker notes with per-slide timing (~10:10 total). Live demo via a cue slide; no embedded video. No film frames or faces (copyright); no invented metrics.
-Constraints: House Lights world from DESIGN.md unchanged; fonts self-hosted in presentation/fonts.
+Constraints: House Lights world from DESIGN.md unchanged; fonts self-hosted in docs/fonts.
 
 ## Direction contract
 
