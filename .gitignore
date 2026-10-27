@@ -52,3 +52,6 @@ backend/scripts/my_voice.*
 
 # demo video project (footage, Premiere files, renders)
 demo_video/
+
+# demo data package for collaborators (copyrighted clips): share privately, never commit
+data_demo/
