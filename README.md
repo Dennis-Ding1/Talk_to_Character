@@ -9,10 +9,7 @@ Blackett, the cyanide and how close he came to killing Niels Bohr. Ask him wheth
 he has no idea what you mean, because for him it's 1926 in Cambridge and Los Alamos doesn't exist yet.
 Switch to the other mode and the same character looks back on his whole life, ready for "what if".
 
-Built for the Boson AI hackathon, entirely on the **Higgs** models.
-
 **Pitch deck:** [dennis-ding1.github.io/Talk_to_Character](https://dennis-ding1.github.io/Talk_to_Character/)
-(source in [`docs/`](docs/), speaker script in [docs/script.md](docs/script.md)).
 
 ## Core features
 
@@ -87,6 +84,7 @@ key that created them, so register them once under your own key, then restart th
 ```bash
 cd backend
 python -m preprocess.cli voices oppenheimer --redo
+python -m preprocess.cli voices rick_morty_demo --redo
 ```
 
 ## Movie data
@@ -98,7 +96,7 @@ For the best conversations a film needs **both subtitles and the screenplay**:
 - **Subtitles** (`subtitles.srt`) give every line with its exact time, so a character can remember
   what was said right up to the paused second.
 - **The screenplay** (`screenplay.pdf`) adds what subtitles can't: who is speaking, who is in the
-  scene without speaking, what happens on screen (the poisoned apple is never mentioned out loud),
+  scene without speaking, what happens on screen (eg. the poisoned apple is never mentioned out loud),
   and where and when each scene takes place. It is aligned to the subtitles automatically.
 
 Subtitles alone still work, but characters only know dialogue, not actions, and may guess wrong
