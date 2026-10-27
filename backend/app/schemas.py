@@ -1,4 +1,4 @@
-"""Shared data models. Field names match the JSON files in data/movies/<id>/ (see docs/data-spec.md)."""
+"""Shared data models. Field names match the JSON files in data/movies/<id>/ (see dev-docs/data-spec.md)."""
 
 from typing import Literal
 

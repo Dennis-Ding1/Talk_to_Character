@@ -11,6 +11,9 @@ Switch to the other mode and the same character looks back on his whole life, re
 
 Built for the Boson AI hackathon, entirely on the **Higgs** models.
 
+**Pitch deck:** [dennis-ding1.github.io/Talk_to_Character](https://dennis-ding1.github.io/Talk_to_Character/)
+(source in [`docs/`](docs/), speaker script in [docs/script.md](docs/script.md)).
+
 ## Core features
 
 **Spoiler-safe characters ("Up to now").** A character's knowledge is cut at the exact paused
@@ -57,7 +60,7 @@ pause at t ─► knowledge cut at t and filtered to what this character saw
           ─► Higgs Realtime (your voice in, their voice out) ─► spoiler check ─► speaker / Higgs Avatar
 ```
 
-More: [docs/architecture.md](docs/architecture.md) · data format: [docs/data-spec.md](docs/data-spec.md)
+More: [dev-docs/architecture.md](dev-docs/architecture.md) · data format: [dev-docs/data-spec.md](dev-docs/data-spec.md)
 
 ## Run it
 
@@ -126,7 +129,7 @@ data/movies/<id>/
   `movie.json` names the full film in `"source"` and lists `"segments"` (demo time → film time), so
   it shares the film's characters and knowledge and behaves exactly like the full film.
 
-Full field reference: [docs/data-spec.md](docs/data-spec.md).
+Full field reference: [dev-docs/data-spec.md](dev-docs/data-spec.md).
 
 ### About `data/movies/demo`
 
